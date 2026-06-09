@@ -1,0 +1,8 @@
+name: miko_gseb_demo
+
+packages:
+  - packages/*
+
+command:
+  bootstrap:
+    usePubspecOverrides: true

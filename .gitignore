@@ -1,0 +1,13 @@
+.DS_Store
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+melos_*.log
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.spec
+*.xccheckout
+*.xcworkspace

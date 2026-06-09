@@ -1,0 +1,96 @@
+enum QuestionType {
+  mcq,
+  multiSelect,
+  fillInBlank,
+  trueFalse,
+  matching,
+  sorting,
+  reflection,
+  verbal
+}
+
+class QuestionOption {
+  final String label;
+  final String value;
+
+  const QuestionOption({required this.label, required this.value});
+}
+
+class MatchingPair {
+  final String itemA;
+  final String itemB;
+
+  const MatchingPair({required this.itemA, required this.itemB});
+}
+
+class QuizQuestion {
+  final String id;
+  final String subject;
+  final String text;
+  final QuestionType type;
+  final List<QuestionOption> options;
+  final List<String> correctAnswers; // For MCQ, multi-select, true/false, fill-in-the-blank
+  final List<MatchingPair> matchingPairs; // For matching
+  final List<String> sortedOrder; // For sorting
+  final String? visualAid; // Dynamic visuals (e.g. chocolate_4_2)
+  final String? voiceAudioFile; // Simulated audio asset path
+
+  const QuizQuestion({
+    required this.id,
+    required this.subject,
+    required this.text,
+    required this.type,
+    this.options = const [],
+    this.correctAnswers = const [],
+    this.matchingPairs = const [],
+    this.sortedOrder = const [],
+    this.visualAid,
+    this.voiceAudioFile,
+  });
+
+  bool validateAnswer(dynamic answer) {
+    if (type == QuestionType.reflection) {
+      return true; // Self-reflection is always validated as correct!
+    }
+    if (type == QuestionType.mcq || type == QuestionType.trueFalse) {
+      if (answer is! String) return false;
+      return correctAnswers.isNotEmpty && correctAnswers.first.trim().toLowerCase() == answer.trim().toLowerCase();
+    }
+    if (type == QuestionType.multiSelect) {
+      if (answer is! List) return false;
+      if (answer.length != correctAnswers.length) return false;
+      final correctSet = correctAnswers.map((e) => e.trim().toLowerCase()).toSet();
+      final answerSet = answer.map((e) => e.toString().trim().toLowerCase()).toSet();
+      return correctSet.difference(answerSet).isEmpty;
+    }
+    if (type == QuestionType.fillInBlank) {
+      if (answer is! String) return false;
+      return correctAnswers.isNotEmpty && correctAnswers.first.trim().toLowerCase() == answer.trim().toLowerCase();
+    }
+    if (type == QuestionType.matching) {
+      if (answer is! Map<String, String>) return false;
+      if (answer.length != matchingPairs.length) return false;
+      for (final pair in matchingPairs) {
+        if (answer[pair.itemA]?.trim().toLowerCase() != pair.itemB.trim().toLowerCase()) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (type == QuestionType.sorting) {
+      if (answer is! List) return false;
+      if (answer.length != sortedOrder.length) return false;
+      for (int i = 0; i < sortedOrder.length; i++) {
+        if (sortedOrder[i].trim().toLowerCase() != answer[i].toString().trim().toLowerCase()) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (type == QuestionType.verbal) {
+      if (answer is! String) return false;
+      return correctAnswers.isNotEmpty && correctAnswers.first.trim().toLowerCase() == answer.trim().toLowerCase();
+    }
+    return false;
+  }
+}
