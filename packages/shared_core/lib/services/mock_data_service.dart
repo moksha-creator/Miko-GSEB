@@ -3,17 +3,24 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:js' as js;
+import 'package:flutter/foundation.dart';
 
 import '../models/class_profile.dart';
 import '../models/student.dart';
 import '../models/session.dart';
 import '../models/quiz_models.dart';
+import '../localization/app_strings.dart';
+import '../providers/locale_provider.dart';
 
 final mockDataServiceProvider = Provider<MockDataService>((ref) {
-  return MockDataService();
+  final lang = ref.watch(localeProvider);
+  return MockDataService(lang);
 });
 
 class MockDataService {
+  final AppLanguage language;
+  MockDataService(this.language);
+
   Future<ClassProfile> loadClassSample() async {
     final String response = await rootBundle.loadString('packages/shared_core/assets/mock/class_sample.json');
     final data = json.decode(response);
@@ -132,6 +139,11 @@ class MockDataService {
     return await json.decode(response);
   }
 
+  Future<Map<String, dynamic>> loadCurriculum() async {
+    final String response = await rootBundle.loadString('packages/shared_core/assets/mock/curriculum_full.json');
+    return await json.decode(response);
+  }
+
   Future<List<dynamic>> loadSimulatedDialogue() async {
     final String response = await rootBundle.loadString('packages/shared_core/assets/mock/simulated_session_dialogue.json');
     return await json.decode(response);
@@ -141,6 +153,76 @@ class MockDataService {
     // Simulate network delay
     await Future.delayed(const Duration(milliseconds: 500));
     
+    if (subject == 'Social Studies') {
+      try {
+        final String response = await rootBundle.loadString('packages/shared_core/assets/mock/questions.json');
+        final List<dynamic> data = json.decode(response);
+        return data.map((q) {
+          final template = q['template'] as String;
+          
+          QuestionType type = QuestionType.verbal;
+          List<QuestionOption> options = [];
+          List<MatchingPair> matchingPairs = [];
+          List<String> sortedOrder = [];
+          List<String> correctAnswers = [];
+          
+          if (template == 'TEXT_CHOICE_4_IMAGE_QUESTION') {
+            type = QuestionType.mcq;
+            final opts = q['options'] as List<dynamic>? ?? [];
+            for (var o in opts) {
+              final text = o['text'] as String;
+              options.add(QuestionOption(label: '', value: text));
+              if (o['isCorrect'] == true) {
+                correctAnswers.add(text);
+              }
+            }
+          } else if (template == 'MATCHING_PAIRS') {
+            type = QuestionType.matching;
+            final pairs = q['pairs'] as List<dynamic>? ?? [];
+            for (var p in pairs) {
+              final left = p['left'] as Map<String, dynamic>;
+              final right = p['right'] as Map<String, dynamic>;
+              matchingPairs.add(MatchingPair(
+                itemA: left['image'] as String,
+                itemABrief: left['imageBrief'] as String,
+                itemB: right['image'] as String,
+                itemBBrief: right['imageBrief'] as String,
+              ));
+            }
+          } else if (template == 'SEQUENCE') {
+            type = QuestionType.sorting;
+            final items = q['items'] as List<dynamic>? ?? [];
+            // Sort them correctly based on correctOrder
+            items.sort((a, b) => (a['correctOrder'] as int).compareTo(b['correctOrder'] as int));
+            sortedOrder = items.map((e) => e['text'] as String).toList();
+          }
+
+          return QuizQuestion(
+            id: q['id'] as String,
+            subject: q['subject'] as String,
+            text: q['questionText'] as String? ?? '',
+            type: type,
+            options: options,
+            correctAnswers: correctAnswers,
+            matchingPairs: matchingPairs,
+            sortedOrder: sortedOrder,
+            instruction: q['instruction'] as String?,
+            expectedAnswer: q['expectedAnswer'] as String?,
+            acceptableAnswers: (q['acceptableAnswers'] as List<dynamic>?)?.cast<String>() ?? [],
+            explanation: q['explanation'] as String?,
+            questionImage: q['questionImage'] as String?,
+            questionImageBrief: q['questionImageBrief'] as String?,
+            visualAid: template == 'TEXT_CHOICE_4_IMAGE_QUESTION' ? 'text_choice_image' 
+                     : template == 'MATCHING_PAIRS' ? 'match_pairs_images'
+                     : template == 'SEQUENCE' ? 'sequence_text' : 'voice_response',
+          );
+        }).toList();
+      } catch (e) {
+        debugPrint('Error loading questions.json: $e');
+        return [];
+      }
+    }
+
     final lowerSubject = subject.toLowerCase();
     final List<QuizQuestion> questions = [];
     
@@ -154,15 +236,15 @@ class MockDataService {
           questions.add(QuizQuestion(
             id: qId,
             subject: subject,
-            text: lowerSubject.contains('math') ? 'What is 8 x 7?' 
+            text: lowerSubject.contains('math') ? AppStrings.t('what_is_8x7', language)
                 : lowerSubject.contains('sci') ? 'Which gas do plants absorb from the atmosphere?' 
                 : 'Which is a noun?',
             type: QuestionType.mcq,
             options: lowerSubject.contains('math') ? [
-              const QuestionOption(label: 'A', value: '54'),
-              const QuestionOption(label: 'B', value: '56'),
-              const QuestionOption(label: 'C', value: '64'),
-              const QuestionOption(label: 'D', value: '48'),
+              QuestionOption(label: 'A', value: '54'),
+              QuestionOption(label: 'B', value: '56'),
+              QuestionOption(label: 'C', value: '64'),
+              QuestionOption(label: 'D', value: '48'),
             ] : lowerSubject.contains('sci') ? [
               const QuestionOption(label: 'A', value: 'Oxygen'),
               const QuestionOption(label: 'B', value: 'Carbon Dioxide'),
@@ -212,25 +294,25 @@ class MockDataService {
           questions.add(QuizQuestion(
             id: qId,
             subject: subject,
-            text: lowerSubject.contains('math') ? 'Sort into Odd and Even numbers.'
-                : lowerSubject.contains('sci') ? 'Sort into Herbivore and Carnivore.'
-                : 'Sort into Vowels and Consonants.',
+            text: lowerSubject.contains('math') ? AppStrings.t('sort_odd_even', language)
+                : lowerSubject.contains('sci') ? AppStrings.t('sort_herb_carn', language)
+                : AppStrings.t('sort_vow_cons', language),
             type: QuestionType.sorting,
             matchingPairs: lowerSubject.contains('math') ? [
-              const MatchingPair(itemA: '1', itemB: 'Odd'),
-              const MatchingPair(itemA: '3', itemB: 'Odd'),
-              const MatchingPair(itemA: '4', itemB: 'Even'),
-              const MatchingPair(itemA: '6', itemB: 'Even'),
+              MatchingPair(itemA: '1', itemB: AppStrings.t('odd', language)),
+              MatchingPair(itemA: '3', itemB: AppStrings.t('odd', language)),
+              MatchingPair(itemA: '4', itemB: AppStrings.t('even', language)),
+              MatchingPair(itemA: '6', itemB: AppStrings.t('even', language)),
             ] : lowerSubject.contains('sci') ? [
-              const MatchingPair(itemA: '🐄', itemB: 'Herbivore'),
-              const MatchingPair(itemA: '🐇', itemB: 'Herbivore'),
-              const MatchingPair(itemA: '🐅', itemB: 'Carnivore'),
-              const MatchingPair(itemA: '🐺', itemB: 'Carnivore'),
+              MatchingPair(itemA: '🐄', itemB: AppStrings.t('herbivore', language)),
+              MatchingPair(itemA: '🐇', itemB: AppStrings.t('herbivore', language)),
+              MatchingPair(itemA: '🐅', itemB: AppStrings.t('carnivore', language)),
+              MatchingPair(itemA: '🐺', itemB: AppStrings.t('carnivore', language)),
             ] : [
-              const MatchingPair(itemA: 'A', itemB: 'Vowels'),
-              const MatchingPair(itemA: 'E', itemB: 'Vowels'),
-              const MatchingPair(itemA: 'B', itemB: 'Consonants'),
-              const MatchingPair(itemA: 'C', itemB: 'Consonants'),
+              MatchingPair(itemA: 'A', itemB: AppStrings.t('vowels', language)),
+              MatchingPair(itemA: 'E', itemB: AppStrings.t('vowels', language)),
+              MatchingPair(itemA: 'B', itemB: AppStrings.t('consonants', language)),
+              MatchingPair(itemA: 'C', itemB: AppStrings.t('consonants', language)),
             ],
             visualAid: 'two_bucket_sort',
           ));
@@ -240,16 +322,16 @@ class MockDataService {
           questions.add(QuizQuestion(
             id: qId,
             subject: subject,
-            text: 'Match the related concepts.',
+            text: AppStrings.t('match_concepts', language),
             type: QuestionType.matching,
             matchingPairs: lowerSubject.contains('math') ? [
               const MatchingPair(itemA: '5 + 5', itemB: '10'),
               const MatchingPair(itemA: '4 x 3', itemB: '12'),
               const MatchingPair(itemA: '20 / 4', itemB: '5'),
             ] : lowerSubject.contains('sci') ? [
-              const MatchingPair(itemA: 'Sun', itemB: 'Star'),
-              const MatchingPair(itemA: 'Earth', itemB: 'Planet'),
-              const MatchingPair(itemA: 'Moon', itemB: 'Satellite'),
+              MatchingPair(itemA: AppStrings.t('sun', language), itemB: AppStrings.t('star', language)),
+              MatchingPair(itemA: AppStrings.t('earth', language), itemB: AppStrings.t('planet', language)),
+              MatchingPair(itemA: AppStrings.t('moon', language), itemB: AppStrings.t('satellite', language)),
             ] : [
               const MatchingPair(itemA: 'Hot', itemB: 'Cold'),
               const MatchingPair(itemA: 'Fast', itemB: 'Slow'),
@@ -263,9 +345,9 @@ class MockDataService {
           questions.add(QuizQuestion(
             id: qId,
             subject: subject,
-            text: lowerSubject.contains('math') ? 'Arrange these from smallest to largest.'
-                : lowerSubject.contains('sci') ? 'Order the life cycle of a butterfly.'
-                : 'Arrange the letters alphabetically.',
+            text: lowerSubject.contains('math') ? AppStrings.t('order_fractions', language)
+                : lowerSubject.contains('sci') ? AppStrings.t('order_planets', language)
+                : AppStrings.t('order_alphabet', language),
             type: QuestionType.sorting,
             sortedOrder: lowerSubject.contains('math') ? ['0.25', '1.5', '3.0', '10.5']
                 : lowerSubject.contains('sci') ? ['Egg 🥚', 'Caterpillar 🐛', 'Chrysalis 🪴', 'Butterfly 🦋']
@@ -278,9 +360,9 @@ class MockDataService {
           questions.add(QuizQuestion(
             id: qId,
             subject: subject,
-            text: lowerSubject.contains('math') ? 'Say the answer to 12 + 15.'
-                : lowerSubject.contains('sci') ? 'Name the force that pulls objects to Earth.'
-                : 'Read this word out loud: "Photosynthesis"',
+            text: lowerSubject.contains('math') ? AppStrings.t('read_aloud_frac', language)
+                : lowerSubject.contains('sci') ? AppStrings.t('read_aloud_photo', language)
+                : AppStrings.t('read_aloud_cat', language),
             type: QuestionType.verbal,
             correctAnswers: lowerSubject.contains('math') ? ['27']
                 : lowerSubject.contains('sci') ? ['Gravity']

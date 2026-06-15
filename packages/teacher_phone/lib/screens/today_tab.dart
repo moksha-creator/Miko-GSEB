@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_core/shared_core.dart';
+import 'shared_drawer.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/planner_state_provider.dart';
 
@@ -10,6 +11,7 @@ class TodayTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final plannerState = ref.watch(plannerStateProvider);
+    final lang = ref.watch(localeProvider);
 
     if (plannerState == null) {
       return const Scaffold(
@@ -23,12 +25,13 @@ class TodayTab extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      drawer: const AppDrawer(),
       appBar: AppBar(
-        title: const Text('Today\'s Session', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 26, color: AppColors.textPrimary)),
+        title: Text(AppStrings.t('home_dashboard', lang), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: AppColors.textPrimary)),
       ),
       body: isComplete 
-          ? const Center(child: Text('Today\'s Assessments Complete!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.success)))
-          : _buildBody(context, ref, plannerState, todayEntries),
+          ? _buildCelebration(context)
+          : _buildBody(context, ref, plannerState, todayEntries, lang),
       floatingActionButton: isComplete ? null : Container(
         height: 60,
         margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -42,7 +45,7 @@ class TodayTab extends ConsumerWidget {
             }
           },
           icon: const Icon(Icons.cast_connected, color: Colors.white, size: 20),
-          label: const Text('Start Smart Board Session', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+          label: Text(AppStrings.t('start_smart_board', lang), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             shape: RoundedRectangleBorder(
@@ -57,14 +60,10 @@ class TodayTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, WidgetRef ref, PlannerState state, List<RosterEntry> todayEntries) {
+  Widget _buildBody(BuildContext context, WidgetRef ref, PlannerState state, List<RosterEntry> todayEntries, AppLanguage lang) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       children: [
-        if (state.nextStudent != null) ...[
-          _buildAlertBanner(state.nextStudent!.studentName),
-          const SizedBox(height: 16),
-        ],
         _buildHeaderCard(state),
         const SizedBox(height: 24),
         Row(
@@ -81,34 +80,51 @@ class TodayTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 16),
-        ...todayEntries.map((student) => _buildStudentCard(context, ref, student)).toList(),
+        ...todayEntries.map((student) => _buildStudentCard(context, ref, student, lang)).toList(),
       ],
     );
   }
 
-  Widget _buildAlertBanner(String name) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.accent.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(color: AppColors.accent.withOpacity(0.02), blurRadius: 10),
-        ],
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.warning_amber_rounded, color: AppColors.accent, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              '$name needs adaptive assessment help!',
-              style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 14),
+  Widget _buildCelebration(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: AppColors.success.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Text('🎉', style: TextStyle(fontSize: 64)),
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right, color: AppColors.accent, size: 20),
-        ],
+            const SizedBox(height: 24),
+            const Text('All Done for Today!', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
+            const SizedBox(height: 12),
+            const Text(
+              'You have assessed every student on today\'s roster.\nGreat work!',
+              style: TextStyle(fontSize: 15, color: AppColors.textSecondary, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.analytics_outlined),
+              label: const Text('View Reports', style: TextStyle(fontWeight: FontWeight.bold)),
+              onPressed: () => context.push('/reports'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -169,7 +185,7 @@ class TodayTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildStudentCard(BuildContext context, WidgetRef ref, RosterEntry student) {
+  Widget _buildStudentCard(BuildContext context, WidgetRef ref, RosterEntry student, AppLanguage lang) {
     Color statusColor;
     String statusLabel;
     IconData statusIcon;
@@ -217,12 +233,12 @@ class TodayTab extends ConsumerWidget {
             radius: 20,
             backgroundColor: statusColor.withOpacity(0.12),
             child: Text(
-              student.studentName.substring(0, 1),
+              AppStrings.t(student.studentName, lang).substring(0, 1),
               style: TextStyle(color: statusColor, fontWeight: FontWeight.w900, fontSize: 16),
             ),
           ),
           title: Text(
-            student.studentName, 
+            AppStrings.t(student.studentName, lang), 
             style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.textPrimary)
           ),
           subtitle: Padding(

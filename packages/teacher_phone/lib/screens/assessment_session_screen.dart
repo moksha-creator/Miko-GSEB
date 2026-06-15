@@ -40,6 +40,9 @@ class _AssessmentSessionScreenState extends ConsumerState<AssessmentSessionScree
   Map<String, String> _pairedItems = {};
   String? _selectedMatchLeft;
   
+  double get screenW => MediaQuery.of(context).size.width;
+  double get scale => (screenW / 1280.0).clamp(0.5, 2.5);
+  
   @override
   void dispose() {
     _countdownTimer?.cancel();
@@ -250,7 +253,7 @@ class _AssessmentSessionScreenState extends ConsumerState<AssessmentSessionScree
         title: const Text('Classroom Orchestration', style: TextStyle(fontWeight: FontWeight.w900)),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => context.pop(),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
           Padding(
@@ -481,7 +484,7 @@ class _AssessmentSessionScreenState extends ConsumerState<AssessmentSessionScree
           Column(
             children: [
               Container(
-                padding: const EdgeInsets.fromLTRB(32, 48, 32, 24),
+                padding: EdgeInsets.fromLTRB(32 * scale, 48 * scale, 32 * scale, 24 * scale),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
@@ -493,10 +496,10 @@ class _AssessmentSessionScreenState extends ConsumerState<AssessmentSessionScree
                       child: Text(_currentStudent!.studentName[0], style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(width: 16),
-                    Text(_currentStudent!.studentName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                    Text(_currentStudent!.studentName, style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.w900)),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
                       decoration: BoxDecoration(
                         color: isWarning ? AppColors.accent.withOpacity(0.1) : AppColors.background,
                         borderRadius: BorderRadius.circular(30),
@@ -504,11 +507,11 @@ class _AssessmentSessionScreenState extends ConsumerState<AssessmentSessionScree
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.timer, color: isWarning ? AppColors.accent : AppColors.textSecondary, size: 18),
+                          Icon(Icons.timer, color: isWarning ? AppColors.accent : AppColors.textSecondary, size: 18 * scale),
                           const SizedBox(width: 8),
                           Text(
                             '${_timeRemaining ~/ 60}:${(_timeRemaining % 60).toString().padLeft(2, '0')}',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: isWarning ? AppColors.accent : AppColors.textPrimary),
+                            style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.w900, color: isWarning ? AppColors.accent : AppColors.textPrimary),
                           ),
                         ],
                       ),
@@ -520,12 +523,13 @@ class _AssessmentSessionScreenState extends ConsumerState<AssessmentSessionScree
               Expanded(
                 child: Center(
                   child: Container(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                    padding: const EdgeInsets.all(16),
+                    width: screenW * 0.9,
+                    constraints: const BoxConstraints(maxWidth: 960),
+                    margin: EdgeInsets.symmetric(vertical: 24 * scale),
+                    padding: EdgeInsets.all(24 * scale),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(32),
+                      borderRadius: BorderRadius.circular(32 * scale),
                       border: Border.all(color: AppColors.primary.withOpacity(0.1), width: 2),
                     ),
                     child: SingleChildScrollView(
@@ -536,27 +540,27 @@ class _AssessmentSessionScreenState extends ConsumerState<AssessmentSessionScree
               ),
               
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16 * scale),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     TextButton(
                       onPressed: _skipQuestion,
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 12 * scale),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                      child: const Text('Skip', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                      child: Text('Skip', style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
                     ),
                     const SizedBox(width: 16),
                     ElevatedButton(
                       onPressed: _doneQuestion,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.success,
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                        padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 12 * scale),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                      child: const Text('Done', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.white)),
+                      child: Text('Done', style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.w900, color: Colors.white)),
                     ),
                   ],
                 ),
@@ -565,30 +569,30 @@ class _AssessmentSessionScreenState extends ConsumerState<AssessmentSessionScree
           ),
           
           Positioned(
-            left: 16,
-            bottom: 16,
+            left: 16 * scale,
+            bottom: 16 * scale,
             child: Row(
               children: [
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isPaused ? AppColors.warning : AppColors.surface,
                     foregroundColor: _isPaused ? Colors.white : AppColors.textPrimary,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
                   ),
                   onPressed: () => setState(() => _isPaused = !_isPaused),
-                  icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause, size: 16),
-                  label: Text(_isPaused ? 'Resume' : 'Pause', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause, size: 16 * scale),
+                  label: Text(_isPaused ? 'Resume' : 'Pause', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12 * scale)),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.surface,
                     foregroundColor: AppColors.accent,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
                   ),
                   onPressed: _forceEndSession,
-                  icon: const Icon(Icons.stop_rounded, size: 16),
-                  label: const Text('End Session', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  icon: Icon(Icons.stop_rounded, size: 16 * scale),
+                  label: Text('End Session', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12 * scale)),
                 ),
               ],
             ),
@@ -618,22 +622,54 @@ class _AssessmentSessionScreenState extends ConsumerState<AssessmentSessionScree
   }
 
   Widget _buildChoiceTemplate(QuizQuestion question, {required bool isImage}) {
+    final double qFz = 32.0 * scale;
+    
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (question.instruction != null) ...[
+          Text(question.instruction!, style: TextStyle(fontSize: 20.0 * scale, color: AppColors.accent, fontWeight: FontWeight.bold)),
+          SizedBox(height: 16.0 * scale),
+        ],
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.volume_up_rounded, color: AppColors.primary, size: 24),
-            const SizedBox(width: 12),
-            Expanded(child: Text(question.text, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary, height: 1.3))),
+            Icon(Icons.volume_up_rounded, color: AppColors.primary, size: qFz),
+            SizedBox(width: 16.0 * scale),
+            Expanded(child: Text(question.text,
+                style: TextStyle(fontSize: qFz, fontWeight: FontWeight.bold, color: AppColors.textPrimary, height: 1.25))),
           ],
         ),
-        const SizedBox(height: 24),
-        Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          alignment: WrapAlignment.center,
-          children: List.generate(question.options.length, (i) => _buildChoiceOption(question.options[i], i, isImage)),
+        if (question.questionImage != null) ...[
+          SizedBox(height: 24.0 * scale),
+          Container(
+            height: 250.0 * scale,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16.0 * scale),
+              border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16.0 * scale),
+              child: Image.asset(question.questionImage!, fit: BoxFit.contain, errorBuilder: (context, error, stack) {
+                return Center(child: Text('Image Loading Error', style: TextStyle(fontSize: 16 * scale)));
+              }),
+            ),
+          ),
+        ],
+        SizedBox(height: 32.0 * scale),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 24.0 * scale,
+            mainAxisSpacing: 24.0 * scale,
+            mainAxisExtent: 150.0 * scale,
+          ),
+          itemCount: question.options.length,
+          itemBuilder: (context, index) => _buildChoiceOption(question.options[index], index, isImage),
         ),
       ],
     );
@@ -641,30 +677,43 @@ class _AssessmentSessionScreenState extends ConsumerState<AssessmentSessionScree
 
   Widget _buildChoiceOption(QuestionOption option, int index, bool isImage) {
     final isSelected = _selectedOptionIndex == index;
+    final labelText = String.fromCharCode(65 + index); // A, B, C, D
+    final double ansFz = 28.0 * scale;
+    final double labelFz = 16.0 * scale;
     
     return GestureDetector(
       onTap: () => setState(() => _selectedOptionIndex = index),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: isImage ? 100 : 100,
-        height: isImage ? 100 : 80,
+        duration: const Duration(milliseconds: 180),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : AppColors.background,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? AppColors.primary : AppColors.primary.withOpacity(0.1), width: isSelected ? 4 : 2),
-          boxShadow: isSelected ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 15, spreadRadius: 2)] : [],
+          borderRadius: BorderRadius.circular(16.0 * scale),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.primary.withOpacity(0.15),
+            width: isSelected ? 3 : 2,
+          ),
+          boxShadow: isSelected
+              ? [BoxShadow(color: AppColors.primary.withOpacity(0.25), blurRadius: 12, spreadRadius: 2)]
+              : [],
         ),
+        padding: EdgeInsets.all(16.0 * scale),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (isImage) ...[
-              Text(option.value, style: const TextStyle(fontSize: 36)),
-            ],
-            if (!isImage) ...[
-              Text(option.label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isSelected ? Colors.white70 : AppColors.textSecondary)),
-              const SizedBox(height: 4),
-              Text(option.value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: isSelected ? Colors.white : AppColors.primary)),
-            ]
+            Text(labelText, style: TextStyle(fontSize: labelFz, fontWeight: FontWeight.bold, color: isSelected ? Colors.white70 : AppColors.textMuted)),
+            SizedBox(height: 8.0 * scale),
+            Expanded(
+              child: Center(
+                child: Text(option.value,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: ansFz,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? Colors.white : AppColors.textPrimary)),
+              ),
+            ),
           ],
         ),
       ),
@@ -977,7 +1026,7 @@ class _AssessmentSessionScreenState extends ConsumerState<AssessmentSessionScree
             ),
             const SizedBox(height: 64),
             ElevatedButton(
-              onPressed: () => context.pop(),
+              onPressed: () => Navigator.of(context).pop(),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 20),

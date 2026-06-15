@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_core/shared_core.dart';
+import 'shared_drawer.dart';
 import 'dart:async';
 import 'dart:js' as js;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -49,21 +51,48 @@ class _ClassTabState extends ConsumerState<ClassTab> {
   @override
   Widget build(BuildContext context) {
     final classAsync = ref.watch(classSampleProvider);
+    final lang = ref.watch(localeProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      drawer: const AppDrawer(),
       appBar: AppBar(
-        title: const Text('Classroom Roster', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 26, color: AppColors.textPrimary)),
+        title: const Text('Classroom Roster', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: AppColors.textPrimary)),
       ),
       body: classAsync.when(
-        data: (profile) => _buildBody(context, profile),
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        data: (profile) => _buildBody(context, profile, lang),
+        loading: () => _buildLoader(),
         error: (err, stack) => Center(child: Text('Error: $err', style: const TextStyle(color: AppColors.accent))),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context, ClassProfile profile) {
+  Widget _buildLoader() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Center(
+              child: Text('📋', style: TextStyle(fontSize: 40)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text('Loading class data…', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+          const SizedBox(height: 8),
+          const SizedBox(width: 120, child: LinearProgressIndicator(color: AppColors.primary, backgroundColor: AppColors.primaryLight)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, ClassProfile profile, AppLanguage lang) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -80,7 +109,7 @@ class _ClassTabState extends ConsumerState<ClassTab> {
           ],
         ),
         const SizedBox(height: 16),
-        _buildMatrixCardsList(context, profile),
+        _buildMatrixCardsList(context, profile, lang),
       ],
     );
   }
@@ -127,7 +156,7 @@ class _ClassTabState extends ConsumerState<ClassTab> {
     );
   }
 
-  Widget _buildMatrixCardsList(BuildContext context, ClassProfile profile) {
+  Widget _buildMatrixCardsList(BuildContext context, ClassProfile profile, AppLanguage lang) {
     return Column(
       children: profile.students.map((student) {
         final avatarColor = _colorFromHex(student.avatarColor);
@@ -152,7 +181,7 @@ class _ClassTabState extends ConsumerState<ClassTab> {
                     radius: 22,
                     backgroundColor: avatarColor.withOpacity(0.12),
                     child: Text(
-                      student.name.substring(0, 1),
+                      AppStrings.t(student.name, lang).substring(0, 1),
                       style: TextStyle(color: avatarColor, fontWeight: FontWeight.w900, fontSize: 18),
                     ),
                   ),
@@ -162,7 +191,7 @@ class _ClassTabState extends ConsumerState<ClassTab> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          student.name, 
+                          AppStrings.t(student.name, lang), 
                           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: AppColors.textPrimary)
                         ),
                         const SizedBox(height: 6),
@@ -221,6 +250,7 @@ class _ClassTabState extends ConsumerState<ClassTab> {
 
   void _showStudentDetailBottomSheet(BuildContext context, Student student) {
     final avatarColor = _colorFromHex(student.avatarColor);
+    final lang = ref.read(localeProvider);
     
     showModalBottomSheet(
       context: context,
@@ -255,7 +285,7 @@ class _ClassTabState extends ConsumerState<ClassTab> {
                     radius: 28,
                     backgroundColor: avatarColor.withOpacity(0.15),
                     child: Text(
-                      student.name.substring(0, 1),
+                      AppStrings.t(student.name, lang).substring(0, 1),
                       style: TextStyle(color: avatarColor, fontWeight: FontWeight.w900, fontSize: 24),
                     ),
                   ),
@@ -264,7 +294,7 @@ class _ClassTabState extends ConsumerState<ClassTab> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(student.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
+                        Text(AppStrings.t(student.name, lang), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                         const SizedBox(height: 2),
                         Text('Grade 5-B · Roll No: #${student.rollNo}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                       ],
@@ -330,7 +360,7 @@ class _ClassTabState extends ConsumerState<ClassTab> {
                   ScaffoldMessenger.of(context).clearSnackBars();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Remote assessment requested on iPad for ${student.name.split(' ')[0]}'),
+                      content: Text('Remote assessment requested on iPad for ${AppStrings.t(student.name, lang).split(' ')[0]}'),
                       backgroundColor: AppColors.primary,
                     ),
                   );

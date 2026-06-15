@@ -19,8 +19,15 @@ class QuestionOption {
 class MatchingPair {
   final String itemA;
   final String itemB;
+  final String? itemABrief;
+  final String? itemBBrief;
 
-  const MatchingPair({required this.itemA, required this.itemB});
+  const MatchingPair({
+    required this.itemA, 
+    required this.itemB,
+    this.itemABrief,
+    this.itemBBrief,
+  });
 }
 
 class QuizQuestion {
@@ -34,6 +41,12 @@ class QuizQuestion {
   final List<String> sortedOrder; // For sorting
   final String? visualAid; // Dynamic visuals (e.g. chocolate_4_2)
   final String? voiceAudioFile; // Simulated audio asset path
+  final String? instruction;
+  final String? expectedAnswer;
+  final List<String> acceptableAnswers;
+  final String? explanation;
+  final String? questionImage;
+  final String? questionImageBrief;
 
   const QuizQuestion({
     required this.id,
@@ -46,6 +59,12 @@ class QuizQuestion {
     this.sortedOrder = const [],
     this.visualAid,
     this.voiceAudioFile,
+    this.instruction,
+    this.expectedAnswer,
+    this.acceptableAnswers = const [],
+    this.explanation,
+    this.questionImage,
+    this.questionImageBrief,
   });
 
   bool validateAnswer(dynamic answer) {
@@ -89,6 +108,9 @@ class QuizQuestion {
     }
     if (type == QuestionType.verbal) {
       if (answer is! String) return false;
+      if (acceptableAnswers.isNotEmpty) {
+        return acceptableAnswers.map((e) => e.trim().toLowerCase()).contains(answer.trim().toLowerCase());
+      }
       return correctAnswers.isNotEmpty && correctAnswers.first.trim().toLowerCase() == answer.trim().toLowerCase();
     }
     return false;

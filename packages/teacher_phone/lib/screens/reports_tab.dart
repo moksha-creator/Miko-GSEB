@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_core/shared_core.dart';
+import 'shared_drawer.dart';
 
 final reportProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final service = ref.watch(mockDataServiceProvider);
@@ -13,11 +15,13 @@ class ReportsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reportAsync = ref.watch(reportProvider);
+    final lang = ref.watch(localeProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      drawer: const AppDrawer(),
       appBar: AppBar(
-        title: const Text('Assessment Reports', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 26, color: AppColors.textPrimary)),
+        title: const Text('Assessment Reports', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 22, color: AppColors.textPrimary)),
         actions: [
           IconButton(
             icon: const Icon(Icons.ios_share_rounded, color: AppColors.primary),
@@ -29,14 +33,35 @@ class ReportsTab extends ConsumerWidget {
         ],
       ),
       body: reportAsync.when(
-        data: (report) => _buildBody(context, report),
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        data: (report) => _buildBody(context, report, lang),
+        loading: () => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Center(
+                  child: Text('📊', style: TextStyle(fontSize: 40)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Loading report…', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+              const SizedBox(height: 8),
+              const SizedBox(width: 120, child: LinearProgressIndicator(color: AppColors.primary, backgroundColor: AppColors.primaryLight)),
+            ],
+          ),
+        ),
         error: (err, stack) => Center(child: Text('Error: $err', style: const TextStyle(color: AppColors.accent))),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context, Map<String, dynamic> report) {
+  Widget _buildBody(BuildContext context, Map<String, dynamic> report, AppLanguage lang) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -67,7 +92,7 @@ class ReportsTab extends ConsumerWidget {
         const SizedBox(height: 28),
         
         _buildSectionHeader('3. Student Roster Profiles'),
-        _buildProfilesList(report['student_profiles']),
+        _buildProfilesList(report['student_profiles'], lang),
       ],
     );
   }
@@ -234,7 +259,7 @@ class ReportsTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfilesList(List<dynamic> studentProfiles) {
+  Widget _buildProfilesList(List<dynamic> studentProfiles, AppLanguage lang) {
     return Column(
       children: studentProfiles.map((student) {
         Color statusColor;
@@ -262,7 +287,7 @@ class ReportsTab extends ConsumerWidget {
                 radius: 20,
                 backgroundColor: statusColor.withOpacity(0.1),
                 child: Text(
-                  student['name'].substring(0, 1),
+                  AppStrings.t(student['name'], lang).substring(0, 1),
                   style: TextStyle(color: statusColor, fontWeight: FontWeight.w900, fontSize: 16),
                 ),
               ),
@@ -273,7 +298,7 @@ class ReportsTab extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
-                        Text(student['name'], style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: AppColors.textPrimary)),
+                        Text(AppStrings.t(student['name'], lang), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: AppColors.textPrimary)),
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
