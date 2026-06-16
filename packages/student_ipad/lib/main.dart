@@ -18,6 +18,7 @@ void main() async {
       ProviderScope(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
+          reportingSharedPreferencesProvider.overrideWithValue(prefs),
         ],
         child: const StudentIpadApp(),
       ),

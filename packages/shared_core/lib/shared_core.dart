@@ -11,3 +11,7 @@ export 'services/planner_service.dart';
 export 'theme/app_theme.dart';
 export 'localization/app_strings.dart';
 export 'providers/locale_provider.dart';
+
+export 'models/reporting_models.dart';
+
+export 'services/reporting_service.dart';

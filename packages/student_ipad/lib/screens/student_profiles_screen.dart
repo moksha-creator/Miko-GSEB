@@ -398,6 +398,75 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
   }
 
   // Now Assessing Card (Blue themed, 3-column layout: 1: Avatar, 2: Info/Subject, 3: Vertically stacked buttons)
+  void _showPasswordDialog(BuildContext context) {
+    final TextEditingController pwdController = TextEditingController();
+    bool isError = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(
+                children: [
+                  Icon(Icons.lock, color: Color(0xFF3B82F6)),
+                  SizedBox(width: 12),
+                  Text('Teacher Reports', style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Enter password to access reporting.', style: TextStyle(color: Color(0xFF64748B))),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: pwdController,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: 'Password',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      errorText: isError ? 'Incorrect password. Try again.' : null,
+                    ),
+                    onSubmitted: (val) {
+                      if (val == '1234') {
+                        Navigator.pop(ctx);
+                        context.push('/reports');
+                      } else {
+                        setStateDialog(() => isError = true);
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (pwdController.text == '1234') {
+                      Navigator.pop(ctx);
+                      context.push('/reports');
+                    } else {
+                      setStateDialog(() => isError = true);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B82F6), foregroundColor: Colors.white),
+                  child: const Text('Unlock'),
+                ),
+              ],
+            );
+          }
+        );
+      }
+    );
+  }
+
   Widget _buildNowAssessingCard(Student student, List<Student> activeQueue, bool isGuj) {
     final activeSubject = ref.watch(selectedSubjectProvider);
     final icons = {'Mathematics': '➕➖\n✖️➗', 'Science': '🌿', 'Language': '📖', 'Social Studies': '🌍'};
@@ -1045,19 +1114,32 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
               ],
             ),
           ),
-            ListTile(
-              leading: const Icon(Icons.settings_backup_restore, color: Colors.orange),
-              title: const Text('Reset Setup', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-              subtitle: const Text('Clear configuration and restart onboarding'),
-              onTap: () {
-                Navigator.pop(context);
-                ref.read(classSetupProvider.notifier).reset();
-                context.go('/setup');
-              },
-            ),
           ListTile(
-            leading: const Icon(Icons.book_outlined),
-            title: const Text('Subject Selection'),
+            leading: const Icon(Icons.lock_outline_rounded, color: Color(0xFF3B82F6)),
+            title: const Text('Reports', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+            subtitle: const Text('View student and class performance'),
+            onTap: () {
+              Navigator.pop(context);
+              _showPasswordDialog(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.calendar_month_rounded, color: Color(0xFF3B82F6)),
+            title: const Text('Classroom Schedule', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+            subtitle: const Text('Review weekly setup and feasibility'),
+            onTap: () {
+              Navigator.pop(context);
+              final setup = ref.read(classSetupProvider);
+              if (setup != null) {
+                context.push('/schedule', extra: setup);
+              } else {
+                context.go('/setup');
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.book_outlined, color: Color(0xFF64748B)),
+            title: const Text('Subject Selection', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
             subtitle: Text('Current: ${ref.watch(selectedSubjectProvider)}'),
             onTap: () {
               Navigator.pop(context);
@@ -1065,6 +1147,16 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
             },
           ),
           const Divider(),
+          ListTile(
+            leading: const Icon(Icons.settings_backup_restore, color: Colors.orange),
+            title: const Text('Reset Setup', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+            subtitle: const Text('Clear configuration and restart onboarding'),
+            onTap: () {
+              Navigator.pop(context);
+              ref.read(classSetupProvider.notifier).reset();
+              context.go('/setup');
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.restart_alt, color: Colors.red),
             title: Text(AppStrings.t('reset_demo_data', ref.watch(localeProvider)), style: const TextStyle(color: Colors.red)),

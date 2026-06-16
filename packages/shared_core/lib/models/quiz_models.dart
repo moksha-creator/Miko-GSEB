@@ -88,24 +88,39 @@ class QuizQuestion {
       return correctAnswers.isNotEmpty && correctAnswers.first.trim().toLowerCase() == answer.trim().toLowerCase();
     }
     if (type == QuestionType.matching) {
-      if (answer is! Map<String, String>) return false;
+      if (answer is! Map) return false;
       if (answer.length != matchingPairs.length) return false;
-      for (final pair in matchingPairs) {
-        if (answer[pair.itemA]?.trim().toLowerCase() != pair.itemB.trim().toLowerCase()) {
+      for (int i = 0; i < matchingPairs.length; i++) {
+        final pair = matchingPairs[i];
+        final val = answer[i] ?? answer[pair.itemA];
+        if (val?.toString().trim().toLowerCase() != pair.itemB.trim().toLowerCase()) {
           return false;
         }
       }
       return true;
     }
     if (type == QuestionType.sorting) {
-      if (answer is! List) return false;
-      if (answer.length != sortedOrder.length) return false;
-      for (int i = 0; i < sortedOrder.length; i++) {
-        if (sortedOrder[i].trim().toLowerCase() != answer[i].toString().trim().toLowerCase()) {
-          return false;
+      if (matchingPairs.isNotEmpty) {
+        if (answer is! Map) return false;
+        if (answer.length != matchingPairs.length) return false;
+        for (int i = 0; i < matchingPairs.length; i++) {
+          final pair = matchingPairs[i];
+          final val = answer[i] ?? answer[pair.itemA];
+          if (val?.toString().trim().toLowerCase() != pair.itemB.trim().toLowerCase()) {
+            return false;
+          }
         }
+        return true;
+      } else {
+        if (answer is! List) return false;
+        if (answer.length != sortedOrder.length) return false;
+        for (int i = 0; i < sortedOrder.length; i++) {
+          if (sortedOrder[i].trim().toLowerCase() != answer[i].toString().trim().toLowerCase()) {
+            return false;
+          }
+        }
+        return true;
       }
-      return true;
     }
     if (type == QuestionType.verbal) {
       if (answer is! String) return false;

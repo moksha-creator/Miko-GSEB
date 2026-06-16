@@ -6,6 +6,8 @@ import 'screens/quiz_screen.dart';
 import 'screens/transition_screens.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/feasibility_screen.dart';
+import 'screens/schedule_screen.dart';
+import 'screens/reports/reporting_screen.dart';
 import 'providers/planner_state_provider.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -38,6 +40,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/schedule',
+        builder: (context, state) {
+          final setup = state.extra as ClassSetup;
+          return ScheduleScreen(setup: setup);
+        },
+      ),
+      GoRoute(
         path: '/be-ready',
         builder: (context, state) => const BeReadyScreen(),
       ),
@@ -48,6 +57,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/next-student-transition',
         builder: (context, state) => const NextStudentTransitionScreen(),
+      ),
+      GoRoute(
+        path: '/reports',
+        builder: (context, state) => const ReportingScreen(),
       ),
     ],
   );

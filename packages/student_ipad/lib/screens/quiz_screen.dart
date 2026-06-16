@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_core/models/reporting_models.dart';
+import 'package:shared_core/services/reporting_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_core/shared_core.dart';
@@ -23,6 +25,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   int _score = 0;
   int _timeLeftSeconds = 300; // 5-minute timer
   Timer? _timer;
+  DateTime _questionStartTime = DateTime.now();
   bool _isSpeaking = false;
   bool _isRecording = false; // Microphone voice animation control
   final FlutterTts _flutterTts = FlutterTts();
@@ -116,6 +119,30 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   void _submitAnswer(dynamic answer) {
     final currentQ = _questions[_currentQuestionIndex];
     final isCorrect = answer != null && currentQ.validateAnswer(answer);
+    final timeSpent = DateTime.now().difference(_questionStartTime).inSeconds;
+    
+    final student = ref.read(selectedStudentProvider);
+    final subject = ref.read(selectedSubjectProvider);
+    
+    if (student != null) {
+      final response = QuizResponse(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        studentId: student.id,
+        studentName: student.name,
+        subject: subject,
+        chapter: 'Unit 1',
+        questionId: currentQ.id,
+        questionText: currentQ.text,
+        questionType: currentQ.type,
+        isCorrect: isCorrect,
+        submittedAnswer: answer,
+        timeSpentSeconds: timeSpent,
+        timestamp: DateTime.now(),
+      );
+      ref.read(reportingServiceProvider).saveResponse(response);
+    }
+    
+    _questionStartTime = DateTime.now();
     
     setState(() {
       _answers[_currentQuestionIndex] = answer == null ? "skipped" : answer;
@@ -443,139 +470,158 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           
           const SizedBox(height: 20),
           
-          // Question card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.primaryLight.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.primary.withOpacity(0.12), width: 1.5),
-            ),
-            child: Row(
-              children: [
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    if (_isSpeaking)
-                      Container(
-                        width: 62,
-                        height: 62,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.15),
-                          shape: BoxShape.circle,
-                        ),
-                      ).animate(onPlay: (controller) => controller.repeat()).scale(
-                        begin: const Offset(0.9, 0.9),
-                        end: const Offset(1.25, 1.25),
-                        duration: 1.2.seconds,
-                        curve: Curves.easeInOut,
-                      ).fadeIn(duration: 400.ms).fadeOut(delay: 600.ms, duration: 400.ms),
-                      
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6),
-                        ],
-                      ),
-                      child: const Center(
-                        child: Text('🤖', style: TextStyle(fontSize: 26)),
-                      ),
-                    ).animate(target: _isSpeaking ? 1 : 0).shake(duration: 500.ms),
-                  ],
-                ),
-                const SizedBox(width: 16),
-                
-                Expanded(
-                  child: Text(
-                    _overrideAIInstruction ?? question.text,
-                    style: const TextStyle(
-                      fontSize: 16, 
-                      fontWeight: FontWeight.w900, 
-                      color: AppColors.textPrimary,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                
-                // Speaker button
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _speakCurrentQuestion,
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3)),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.volume_up_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // MCQ Cards Choice List
           Expanded(
-            child: Center(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: question.options.map((opt) {
-                    return Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: InkWell(
-                        onTap: () => _submitAnswer(opt.value),
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.background,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppColors.primary.withOpacity(0.12), width: 1.5),
-                          ),
-                          child: Row(
-                            children: [
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Question card
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppColors.primary.withOpacity(0.12), width: 1.5),
+                    ),
+                    child: Row(
+                      children: [
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            if (_isSpeaking)
                               Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primaryLight,
+                                width: 62,
+                                height: 62,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.15),
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.star_outline_rounded, color: AppColors.primary, size: 18),
+                              ).animate(onPlay: (controller) => controller.repeat()).scale(
+                                begin: const Offset(0.9, 0.9),
+                                end: const Offset(1.25, 1.25),
+                                duration: 1.2.seconds,
+                                curve: Curves.easeInOut,
+                              ).fadeIn(duration: 400.ms).fadeOut(delay: 600.ms, duration: 400.ms),
+                              
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6),
+                                ],
                               ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Text(
-                                  opt.label, 
-                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.textPrimary)
-                                ),
+                              child: const Center(
+                                child: Text('🤖', style: TextStyle(fontSize: 26)),
                               ),
-                            ],
+                            ).animate(target: _isSpeaking ? 1 : 0).shake(duration: 500.ms),
+                          ],
+                        ),
+                        const SizedBox(width: 16),
+                        
+                        Expanded(
+                          child: Text(
+                            _overrideAIInstruction ?? question.text,
+                            style: const TextStyle(
+                              fontSize: 18, 
+                              fontWeight: FontWeight.w900, 
+                              color: AppColors.textPrimary,
+                              height: 1.4,
+                            ),
                           ),
                         ),
-                      ).animate().fadeIn(delay: 50.ms).scale(),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
+                        const SizedBox(width: 12),
+                        
+                        // Speaker button
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _speakCurrentQuestion,
+                            borderRadius: BorderRadius.circular(24),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3)),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.volume_up_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // MCQ Cards Choice List & Puzzle Widget
+                  if (question.options.isNotEmpty)
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: question.options.length <= 2 ? 2 : 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        mainAxisExtent: 80,
+                      ),
+                      itemCount: question.options.length,
+                      itemBuilder: (context, index) {
+                        final opt = question.options[index];
+                        return InkWell(
+                          onTap: () => _submitAnswer(opt.value),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.background,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppColors.primary.withOpacity(0.12), width: 1.5),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const SizedBox(height: 8),
+                                Expanded(
+                                  child: opt.value.startsWith('assets/') 
+                                    ? Image.network(opt.value, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, size: 40))
+                                    : Center(
+                                        child: Text(
+                                          opt.value, 
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 14, 
+                                            fontWeight: FontWeight.w900, 
+                                            color: AppColors.textPrimary,
+                                          )
+                                        ),
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ).animate().fadeIn(delay: Duration(milliseconds: 50 * index)).scale(),
+                        );
+                      },
+                    )
+                  else if (question.type == QuestionType.sorting || question.type == QuestionType.matching)
+                    InteractivePuzzleWidget(
+                      key: ValueKey(question.id),
+                      question: question,
+                      onSubmit: _submitAnswer,
+                    ),
+                ]
+              )
+            )
           ),
           
           const SizedBox(height: 12),
@@ -613,68 +659,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   ),
                 ],
               ),
+              
 
-              // Teacher Verified Button (Only for verbal questions)
-              if (question.type == QuestionType.verbal)
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        _submitAnswer("(Teacher Verified)");
-                      },
-                      icon: const Icon(Icons.check_circle_outline, size: 28, color: Colors.white),
-                      label: const Text('Mark Heard & Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.success,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        elevation: 4,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Tap when child has answered',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                )
-              else
-                const SizedBox.shrink(),
-
-              // 5-Minute Timer Display
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _timeLeftSeconds <= 30 ? Colors.red.shade50 : AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _timeLeftSeconds <= 30 ? Colors.red.shade300 : AppColors.primary.withOpacity(0.1)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.timer_outlined, 
-                      size: 16, 
-                      color: _timeLeftSeconds <= 30 ? Colors.red : AppColors.primary
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _formatTime(_timeLeftSeconds),
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: _timeLeftSeconds <= 30 ? Colors.red : AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ],
@@ -696,7 +682,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('🎉 SESSION COMPLETE! 🎉', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.success, letterSpacing: 1.0)),
+              const Text('🎉 SESSION COMPLETE! 🎉', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.success, letterSpacing: 1.0)),
               const SizedBox(height: 16),
               const Text(
                 'Class evaluations completed successfully!',
@@ -877,4 +863,314 @@ Color _colorFromHex(String hexColor) {
     hexColor = 'FF$hexColor';
   }
   return Color(int.parse(hexColor, radix: 16));
+}
+
+class InteractivePuzzleWidget extends StatefulWidget {
+  final QuizQuestion question;
+  final ValueChanged<dynamic> onSubmit;
+
+  const InteractivePuzzleWidget({Key? key, required this.question, required this.onSubmit}) : super(key: key);
+
+  @override
+  _InteractivePuzzleWidgetState createState() => _InteractivePuzzleWidgetState();
+}
+
+class _InteractivePuzzleWidgetState extends State<InteractivePuzzleWidget> {
+  late List<String> _sequenceItems;
+  late Map<int, String?> _itemAssignments;
+  late List<String> _buckets;
+  late List<String> _items;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.question.matchingPairs.isNotEmpty) {
+      _itemAssignments = {};
+      _items = [];
+      final bucketSet = <String>{};
+      for (int i = 0; i < widget.question.matchingPairs.length; i++) {
+        final pair = widget.question.matchingPairs[i];
+        _itemAssignments[i] = null;
+        _items.add(pair.itemA);
+        bucketSet.add(pair.itemB);
+      }
+      _buckets = bucketSet.toList();
+    } else {
+      _sequenceItems = List.from(widget.question.sortedOrder)..shuffle();
+    }
+  }
+
+  Widget _buildDraggableItem(int itemIndex, String itemText, {bool inBucket = false}) {
+    final isAsset = itemText.startsWith('assets/');
+    final isImage = isAsset || itemText.startsWith('[image:') || itemText.contains(RegExp(r'[\u2600-\u26FF\u2700-\u27BF\u1F300-\u1F5FF\u1F600-\u1F64F\u1F680-\u1F6FF\u1F900-\u1F9FF]'));
+    
+    final contentWidget = isAsset
+        ? Image.network(itemText, height: 35, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, size: 35))
+        : Text(
+            itemText,
+            style: TextStyle(
+              fontSize: isImage ? 16 : 14,
+              fontWeight: FontWeight.bold,
+              color: isImage ? AppColors.primary : AppColors.textPrimary,
+            ),
+          );
+
+    final itemWidget = Container(
+      padding: EdgeInsets.symmetric(horizontal: inBucket ? 8 : 12, vertical: inBucket ? 6 : 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(inBucket ? 8 : 12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
+      ),
+      child: contentWidget,
+    );
+
+    return Draggable<int>(
+      data: itemIndex,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Opacity(opacity: 0.8, child: itemWidget),
+      ),
+      childWhenDragging: Opacity(opacity: 0.3, child: itemWidget),
+      child: itemWidget,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.question.matchingPairs.isNotEmpty) {
+      final isComplete = !_itemAssignments.values.any((v) => v == null);
+      
+      final unsortedIndices = _itemAssignments.entries.where((e) => e.value == null).map((e) => e.key).toList();
+      
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            alignment: WrapAlignment.center,
+            children: _buckets.map((bucketLabel) {
+              final assignedIndices = _itemAssignments.entries.where((e) => e.value == bucketLabel).map((e) => e.key).toList();
+              final isBucketImage = bucketLabel.startsWith('assets/') || bucketLabel.startsWith('[image:');
+              
+              return DragTarget<int>(
+                onAcceptWithDetails: (details) {
+                  setState(() {
+                    _itemAssignments[details.data] = bucketLabel;
+                  });
+                },
+                builder: (context, candidateData, rejectedData) {
+                  return Container(
+                    width: 120,
+                    constraints: const BoxConstraints(minHeight: 80),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: candidateData.isNotEmpty ? AppColors.primaryLight : AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: candidateData.isNotEmpty ? AppColors.primary : AppColors.primary.withValues(alpha: 0.2),
+                        width: candidateData.isNotEmpty ? 2 : 1
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        isBucketImage && bucketLabel.startsWith('assets/')
+                          ? Image.network(bucketLabel, height: 40, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, size: 40))
+                          : Text(bucketLabel, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 14), textAlign: TextAlign.center),
+                        const Divider(),
+                        if (assignedIndices.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Text('Drop here', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic, fontSize: 12)),
+                          )
+                        else
+                          Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            alignment: WrapAlignment.center,
+                            children: assignedIndices.map((i) => GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _itemAssignments[i] = null;
+                                });
+                              },
+                              child: _buildDraggableItem(i, _items[i], inBucket: true),
+                            )).toList(),
+                          )
+                      ],
+                    ),
+                  );
+                },
+              );
+            }).toList(),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          DragTarget<int>(
+            onAcceptWithDetails: (details) {
+              setState(() {
+                _itemAssignments[details.data] = null;
+              });
+            },
+            builder: (context, candidateData, rejectedData) {
+              return Container(
+                constraints: const BoxConstraints(minHeight: 80),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: candidateData.isNotEmpty ? AppColors.primaryLight.withValues(alpha: 0.3) : AppColors.background,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: candidateData.isNotEmpty ? AppColors.primary : AppColors.primaryLight,
+                    width: candidateData.isNotEmpty ? 2 : 1
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Drag Items to Match', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: unsortedIndices.map((i) => _buildDraggableItem(i, _items[i])).toList(),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: isComplete ? () {
+              widget.onSubmit(_itemAssignments);
+            } : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            child: const Text('Submit Matches', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      );
+    } else {
+      // Sequence / Sorting
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(8),
+              itemCount: _sequenceItems.length,
+              itemBuilder: (context, index) {
+                final item = _sequenceItems[index];
+                final isImage = item.startsWith('assets/') || item.startsWith('[image:') || item.contains(RegExp(r'[\u2600-\u26FF\u2700-\u27BF\u1F300-\u1F5FF\u1F600-\u1F64F\u1F680-\u1F6FF\u1F900-\u1F9FF]'));
+                return Container(
+                  key: ValueKey(item),
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2)),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text('${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 12)),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: item.startsWith('assets/') ? Align(alignment: Alignment.centerLeft, child: Image.network(item, height: 30, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, size: 30))) : Text(
+                          item, 
+                          style: TextStyle(
+                            fontSize: isImage ? 12 : 14,
+                            fontWeight: FontWeight.bold,
+                            color: isImage ? AppColors.primary : AppColors.textPrimary,
+                          )
+                        ),
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (index > 0)
+                            IconButton(
+                              icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 28, color: AppColors.primary),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              onPressed: () {
+                                setState(() {
+                                  final temp = _sequenceItems[index];
+                                  _sequenceItems[index] = _sequenceItems[index - 1];
+                                  _sequenceItems[index - 1] = temp;
+                                });
+                              },
+                            )
+                          else
+                            const SizedBox(width: 32, height: 32),
+                            
+                          if (index < _sequenceItems.length - 1)
+                            IconButton(
+                              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 28, color: AppColors.primary),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              onPressed: () {
+                                setState(() {
+                                  final temp = _sequenceItems[index];
+                                  _sequenceItems[index] = _sequenceItems[index + 1];
+                                  _sequenceItems[index + 1] = temp;
+                                });
+                              },
+                            )
+                          else
+                            const SizedBox(width: 32, height: 32),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () {
+              widget.onSubmit(_sequenceItems);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            child: const Text('Submit Sequence', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      );
+    }
+  }
 }

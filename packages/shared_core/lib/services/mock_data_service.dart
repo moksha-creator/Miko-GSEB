@@ -63,7 +63,7 @@ class MockDataService {
             final List<dynamic>? activeSubjectsList = setup['activeSubjects'] as List<dynamic>?;
 
             if (studentCount != null) {
-              final activeSubjects = activeSubjectsList?.cast<String>().toSet() ?? {'math', 'sci', 'lang', 'soc'};
+              final activeSubjects = activeSubjectsList?.cast<String>().toSet() ?? {'math', 'eng', 'guj', 'evs'};
               final List<Student> customStudents = [];
               final coreStudents = baseProfile.students;
               final coreCount = coreStudents.length;
@@ -75,9 +75,9 @@ class MockDataService {
 
               final Map<String, String> subjMap = {
                 'math': 'Mathematics',
-                'sci': 'Science',
-                'lang': 'Language',
-                'soc': 'Social Studies'
+                'eng': 'English',
+                'guj': 'Gujarati',
+                'evs': 'EVS'
               };
 
               for (int i = 0; i < studentCount; i++) {
@@ -167,204 +167,238 @@ class MockDataService {
     return await json.decode(response);
   }
 
-  Future<List<QuizQuestion>> loadQuestionsForSubject(String subject, {int lesson = 1}) async {
-    // Simulate network delay
+        Future<List<QuizQuestion>> loadQuestionsForSubject(String subject, {int lesson = 1}) async {
     await Future.delayed(const Duration(milliseconds: 500));
-    
-    if (subject == 'Social Studies') {
-      try {
-        final String response = await rootBundle.loadString('packages/shared_core/assets/mock/questions.json');
-        final List<dynamic> data = json.decode(response);
-        return data.map((q) {
-          final template = q['template'] as String;
-          
-          QuestionType type = QuestionType.verbal;
-          List<QuestionOption> options = [];
-          List<MatchingPair> matchingPairs = [];
-          List<String> sortedOrder = [];
-          List<String> correctAnswers = [];
-          
-          if (template == 'TEXT_CHOICE_4_IMAGE_QUESTION') {
-            type = QuestionType.mcq;
-            final opts = q['options'] as List<dynamic>? ?? [];
-            for (var o in opts) {
-              final text = o['text'] as String;
-              options.add(QuestionOption(label: '', value: text));
-              if (o['isCorrect'] == true) {
-                correctAnswers.add(text);
-              }
-            }
-          } else if (template == 'MATCHING_PAIRS') {
-            type = QuestionType.matching;
-            final pairs = q['pairs'] as List<dynamic>? ?? [];
-            for (var p in pairs) {
-              final left = p['left'] as Map<String, dynamic>;
-              final right = p['right'] as Map<String, dynamic>;
-              matchingPairs.add(MatchingPair(
-                itemA: left['image'] as String,
-                itemABrief: left['imageBrief'] as String,
-                itemB: right['image'] as String,
-                itemBBrief: right['imageBrief'] as String,
-              ));
-            }
-          } else if (template == 'SEQUENCE') {
-            type = QuestionType.sorting;
-            final items = q['items'] as List<dynamic>? ?? [];
-            // Sort them correctly based on correctOrder
-            items.sort((a, b) => (a['correctOrder'] as int).compareTo(b['correctOrder'] as int));
-            sortedOrder = items.map((e) => e['text'] as String).toList();
-          }
-
-          return QuizQuestion(
-            id: q['id'] as String,
-            subject: q['subject'] as String,
-            text: q['questionText'] as String? ?? '',
-            type: type,
-            options: options,
-            correctAnswers: correctAnswers,
-            matchingPairs: matchingPairs,
-            sortedOrder: sortedOrder,
-            instruction: q['instruction'] as String?,
-            expectedAnswer: q['expectedAnswer'] as String?,
-            acceptableAnswers: (q['acceptableAnswers'] as List<dynamic>?)?.cast<String>() ?? [],
-            explanation: q['explanation'] as String?,
-            questionImage: q['questionImage'] as String?,
-            questionImageBrief: q['questionImageBrief'] as String?,
-            visualAid: template == 'TEXT_CHOICE_4_IMAGE_QUESTION' ? 'text_choice_image' 
-                     : template == 'MATCHING_PAIRS' ? 'match_pairs_images'
-                     : template == 'SEQUENCE' ? 'sequence_text' : 'voice_response',
-          );
-        }).toList();
-      } catch (e) {
-        debugPrint('Error loading questions.json: $e');
-        return [];
-      }
-    }
-
     final lowerSubject = subject.toLowerCase();
     final List<QuizQuestion> questions = [];
-    
-    
-    for (int i = 0; i < 5; i++) {
-      final qId = '${subject}_l${lesson}_q${i+1}';
-      
-      if (i == 0) {
-        questions.add(QuizQuestion(
-          id: qId,
-          subject: subject,
-          text: lowerSubject.contains('math') ? 'What is 8 x 7?'
-              : lowerSubject.contains('sci') ? 'Which gas do plants absorb from the atmosphere?' 
-              : 'Which of the following is a noun?',
-          type: QuestionType.mcq,
-          options: lowerSubject.contains('math') ? [
-            const QuestionOption(label: 'A', value: '54'),
-            const QuestionOption(label: 'B', value: '56'),
-            const QuestionOption(label: 'C', value: '64'),
-            const QuestionOption(label: 'D', value: '48'),
-          ] : lowerSubject.contains('sci') ? [
-            const QuestionOption(label: 'A', value: 'Oxygen'),
-            const QuestionOption(label: 'B', value: 'Carbon Dioxide'),
-            const QuestionOption(label: 'C', value: 'Nitrogen'),
-            const QuestionOption(label: 'D', value: 'Hydrogen'),
-          ] : [
-            const QuestionOption(label: 'A', value: 'Run'),
-            const QuestionOption(label: 'B', value: 'Beautiful'),
-            const QuestionOption(label: 'C', value: 'Apple'),
-            const QuestionOption(label: 'D', value: 'Quickly'),
-          ],
-          correctAnswers: lowerSubject.contains('math') ? ['56'] : lowerSubject.contains('sci') ? ['Carbon Dioxide'] : ['Apple'],
-          visualAid: 'text_only',
-        ));
-      } else if (i == 1) {
-        questions.add(QuizQuestion(
-          id: qId,
-          subject: subject,
-          text: lowerSubject.contains('math') ? 'Which shape has 3 sides?' 
-              : lowerSubject.contains('sci') ? 'Which of these is a mammal?' 
-              : 'Which of these is a fruit?',
-          type: QuestionType.mcq,
-          options: lowerSubject.contains('math') ? [
-            const QuestionOption(label: 'A', value: '🔺'),
-            const QuestionOption(label: 'B', value: '🟩'),
-            const QuestionOption(label: 'C', value: '⚪'),
-            const QuestionOption(label: 'D', value: '⭐'),
-          ] : lowerSubject.contains('sci') ? [
-            const QuestionOption(label: 'A', value: '🦅'),
-            const QuestionOption(label: 'B', value: '🐟'),
-            const QuestionOption(label: 'C', value: '🐶'),
-            const QuestionOption(label: 'D', value: '🦎'),
-          ] : [
-            const QuestionOption(label: 'A', value: '🥦'),
-            const QuestionOption(label: 'B', value: '🍎'),
-            const QuestionOption(label: 'C', value: '🥕'),
-            const QuestionOption(label: 'D', value: '🍞'),
-          ],
-          correctAnswers: lowerSubject.contains('math') ? ['🔺'] : lowerSubject.contains('sci') ? ['🐶'] : ['🍎'],
-          visualAid: 'image_choice',
-        ));
-      } else if (i == 2) {
-        questions.add(QuizQuestion(
-          id: qId,
-          subject: subject,
-          text: lowerSubject.contains('math') ? 'Sort into Odd and Even'
-              : lowerSubject.contains('sci') ? 'Sort into Herbivore and Carnivore'
-              : 'Sort into Vowels and Consonants',
-          type: QuestionType.sorting,
-          matchingPairs: lowerSubject.contains('math') ? [
-            const MatchingPair(itemA: '1', itemB: 'Odd'),
-            const MatchingPair(itemA: '3', itemB: 'Odd'),
-            const MatchingPair(itemA: '4', itemB: 'Even'),
-            const MatchingPair(itemA: '6', itemB: 'Even'),
-          ] : lowerSubject.contains('sci') ? [
-            const MatchingPair(itemA: '🐄', itemB: 'Herbivore'),
-            const MatchingPair(itemA: '🐎', itemB: 'Herbivore'),
-            const MatchingPair(itemA: '🐅', itemB: 'Carnivore'),
-            const MatchingPair(itemA: '🐺', itemB: 'Carnivore'),
-          ] : [
-            const MatchingPair(itemA: 'A', itemB: 'Vowels'),
-            const MatchingPair(itemA: 'E', itemB: 'Vowels'),
-            const MatchingPair(itemA: 'B', itemB: 'Consonants'),
-            const MatchingPair(itemA: 'C', itemB: 'Consonants'),
-          ],
-          visualAid: 'two_bucket_sort',
-        ));
-      } else if (i == 3) {
-        questions.add(QuizQuestion(
-          id: qId,
-          subject: subject,
-          text: 'Match the related pairs',
-          type: QuestionType.matching,
-          matchingPairs: lowerSubject.contains('math') ? [
-            const MatchingPair(itemA: '5 + 5', itemB: '10'),
-            const MatchingPair(itemA: '4 x 3', itemB: '12'),
-            const MatchingPair(itemA: '20 / 4', itemB: '5'),
-          ] : lowerSubject.contains('sci') ? [
-            const MatchingPair(itemA: 'Sun', itemB: 'Star'),
-            const MatchingPair(itemA: 'Earth', itemB: 'Planet'),
-            const MatchingPair(itemA: 'Moon', itemB: 'Satellite'),
-          ] : [
-            const MatchingPair(itemA: 'Hot', itemB: 'Cold'),
-            const MatchingPair(itemA: 'Fast', itemB: 'Slow'),
-            const MatchingPair(itemA: 'Happy', itemB: 'Sad'),
-          ],
-          visualAid: 'match_pairs',
-        ));
-      } else if (i == 4) {
-        questions.add(QuizQuestion(
-          id: qId,
-          subject: subject,
-          text: lowerSubject.contains('math') ? 'Order these numbers from smallest to largest'
-              : lowerSubject.contains('sci') ? 'Order the butterfly life cycle'
-              : 'Order these letters alphabetically',
-          type: QuestionType.sorting,
-          sortedOrder: lowerSubject.contains('math') ? ['0.25', '1.5', '3.0', '10.5']
-              : lowerSubject.contains('sci') ? ['Egg 🥚', 'Caterpillar 🐛', 'Chrysalis 🪹', 'Butterfly 🦋']
-              : ['A', 'F', 'M', 'Z'],
-          visualAid: 'sequence',
-        ));
-      }
+
+    if (lowerSubject.contains('math')) {
+      // 1. IMAGE_CHOICE_4_TEXT_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'math_q1', subject: 'Mathematics', type: QuestionType.mcq,
+        text: 'Which group has 3 balls?',
+        options: [
+          QuestionOption(label: 'A', value: 'assets/mock_images/math_2balls.png'),
+          QuestionOption(label: 'B', value: 'assets/mock_images/math_3balls.png'),
+          QuestionOption(label: 'C', value: 'assets/mock_images/math_4balls.png'),
+          QuestionOption(label: 'D', value: 'assets/mock_images/math_5balls.png'),
+        ],
+        correctAnswers: ['assets/mock_images/math_3balls.png'],
+        visualAid: 'image_choice',
+      ));
+      // 2. TEXT_CHOICE_4_TEXT_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'math_q2', subject: 'Mathematics', type: QuestionType.mcq,
+        text: 'What is 5 + 3?',
+        options: [
+          QuestionOption(label: 'A', value: '6'),
+          QuestionOption(label: 'B', value: '7'),
+          QuestionOption(label: 'C', value: '8'),
+          QuestionOption(label: 'D', value: '9'),
+        ],
+        correctAnswers: ['8'],
+        visualAid: 'text_only',
+      ));
+      // 3. SEQUENCE_TEXT_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'math_q3', subject: 'Mathematics', type: QuestionType.sorting,
+        text: 'Arrange from smallest to biggest.',
+        sortedOrder: ['2', '4', '6', '9'],
+        visualAid: 'sequence',
+      ));
+      // 4. THREE_BUCKET_SORT_IMAGE_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'math_q4', subject: 'Mathematics', type: QuestionType.sorting,
+        text: 'Sort the shapes.',
+        matchingPairs: [
+          MatchingPair(itemA: 'assets/mock_images/math_circle.png', itemB: 'Circle'),
+          MatchingPair(itemA: 'assets/mock_images/math_square.png', itemB: 'Square'),
+          MatchingPair(itemA: 'assets/mock_images/math_triangle.png', itemB: 'Triangle'),
+          MatchingPair(itemA: 'assets/mock_images/math_circle.png', itemB: 'Circle'),
+          MatchingPair(itemA: 'assets/mock_images/math_triangle.png', itemB: 'Triangle'),
+        ],
+        visualAid: 'two_bucket_sort',
+      ));
+      // 5. IMAGE_CHOICE_2_TEXT_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'math_q5', subject: 'Mathematics', type: QuestionType.mcq,
+        text: "Which clock shows 3 o'clock?",
+        options: [
+          QuestionOption(label: 'A', value: 'assets/mock_images/math_clock3.png'),
+          QuestionOption(label: 'B', value: 'assets/mock_images/math_clock6.png'),
+        ],
+        correctAnswers: ['assets/mock_images/math_clock3.png'],
+        visualAid: 'image_choice',
+      ));
+
+    } else if (lowerSubject.contains('eng')) {
+      // 1. IMAGE_CHOICE_4_TEXT_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'eng_q1', subject: 'English', type: QuestionType.mcq,
+        text: 'Which one is an apple?',
+        options: [
+          QuestionOption(label: 'A', value: '🍎'),
+          QuestionOption(label: 'B', value: '🍌'),
+          QuestionOption(label: 'C', value: '🐱'),
+          QuestionOption(label: 'D', value: '⚽'),
+        ],
+        correctAnswers: ['🍎'],
+        visualAid: 'image_choice',
+      ));
+      // 2. TEXT_CHOICE_2_IMAGE_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'eng_q2', subject: 'English', type: QuestionType.mcq,
+        text: '🐱',
+        options: [
+          QuestionOption(label: 'A', value: 'Cat'),
+          QuestionOption(label: 'B', value: 'Dog'),
+        ],
+        correctAnswers: ['Cat'],
+        visualAid: 'text_choice_image',
+      ));
+      // 3. MATCH_PAIRS_TEXT_IMAGE_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'eng_q3', subject: 'English', type: QuestionType.matching,
+        text: 'Match each word to its picture.',
+        matchingPairs: [
+          MatchingPair(itemA: 'Sun', itemB: '🌞'),
+          MatchingPair(itemA: 'Tree', itemB: '🌳'),
+          MatchingPair(itemA: 'Fish', itemB: '🐟'),
+        ],
+        visualAid: 'match_pairs',
+      ));
+      // 4. SEQUENCE_TEXT_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'eng_q4', subject: 'English', type: QuestionType.sorting,
+        text: 'Put the letters in order.',
+        sortedOrder: ['A', 'B', 'C', 'D'],
+        visualAid: 'sequence',
+      ));
+      // 5. VOICE_RESPONSE_IMAGE_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'eng_q5', subject: 'English', type: QuestionType.verbal,
+        text: 'Say the name of this animal: 🐘',
+        correctAnswers: ['elephant'],
+        visualAid: 'voice_response',
+      ));
+
+    } else if (lowerSubject.contains('guj')) {
+      // 1. IMAGE_CHOICE_4_TEXT_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'guj_q1', subject: 'Gujarati', type: QuestionType.mcq,
+        text: "કયું ચિત્ર 'કમળ' છે?",
+        options: [
+          QuestionOption(label: 'A', value: '🪷'),
+          QuestionOption(label: 'B', value: '🌹'),
+          QuestionOption(label: 'C', value: '🍌'),
+          QuestionOption(label: 'D', value: '🥁'),
+        ],
+        correctAnswers: ['🪷'],
+        visualAid: 'image_choice',
+      ));
+      // 2. TEXT_CHOICE_2_IMAGE_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'guj_q2', subject: 'Gujarati', type: QuestionType.mcq,
+        text: '🐄',
+        options: [
+          QuestionOption(label: 'A', value: 'ગાય'),
+          QuestionOption(label: 'B', value: 'બકરી'),
+        ],
+        correctAnswers: ['ગાય'],
+        visualAid: 'text_choice_image',
+      ));
+      // 3. MATCH_PAIRS_TEXT_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'guj_q3', subject: 'Gujarati', type: QuestionType.matching,
+        text: 'વિરુદ્ધાર્થી જોડો. (Match the opposites.)',
+        matchingPairs: [
+          MatchingPair(itemA: 'મોટું', itemB: 'નાનું'),
+          MatchingPair(itemA: 'દિવસ', itemB: 'રાત'),
+          MatchingPair(itemA: 'ઉપર', itemB: 'નીચે'),
+        ],
+        visualAid: 'match_pairs',
+      ));
+      // 4. SEQUENCE_TEXT_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'guj_q4', subject: 'Gujarati', type: QuestionType.sorting,
+        text: 'કક્કાના ક્રમમાં ગોઠવો.',
+        sortedOrder: ['ક', 'ખ', 'ગ', 'ઘ'],
+        visualAid: 'sequence',
+      ));
+      // 5. VOICE_RESPONSE_TEXT_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'guj_q5', subject: 'Gujarati', type: QuestionType.verbal,
+        text: "આ શબ્દ મોટેથી વાંચો: 'સૂરજ'",
+        correctAnswers: ['સૂરજ'],
+        visualAid: 'voice_response',
+      ));
+
+    } else if (lowerSubject.contains('evs') || lowerSubject.contains('sci')) {
+      // 1. TWO_BUCKET_SORT_IMAGE_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'evs_q1', subject: 'EVS', type: QuestionType.sorting,
+        text: 'Sort into Animals and Plants.',
+        matchingPairs: [
+          MatchingPair(itemA: '🐄', itemB: 'Animals'),
+          MatchingPair(itemA: '🌳', itemB: 'Plants'),
+          MatchingPair(itemA: '🐶', itemB: 'Animals'),
+          MatchingPair(itemA: '🌹', itemB: 'Plants'),
+        ],
+        visualAid: 'two_bucket_sort',
+      ));
+      // 2. IMAGE_CHOICE_2_TEXT_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'evs_q2', subject: 'EVS', type: QuestionType.mcq,
+        text: 'Which one do we drink water from?',
+        options: [
+          QuestionOption(label: 'A', value: '🥛'),
+          QuestionOption(label: 'B', value: '👞'),
+        ],
+        correctAnswers: ['🥛'],
+        visualAid: 'image_choice',
+      ));
+      // 3. THREE_BUCKET_SORT_TEXT_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'evs_q3', subject: 'EVS', type: QuestionType.sorting,
+        text: 'Sort by where they live.',
+        matchingPairs: [
+          MatchingPair(itemA: 'Cow', itemB: 'Land'),
+          MatchingPair(itemA: 'Fish', itemB: 'Water'),
+          MatchingPair(itemA: 'Crow', itemB: 'Sky'),
+          MatchingPair(itemA: 'Tiger', itemB: 'Land'),
+          MatchingPair(itemA: 'Lotus', itemB: 'Water'),
+        ],
+        visualAid: 'two_bucket_sort',
+      ));
+      // 4. MATCH_PAIRS_TEXT_IMAGE_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'evs_q4', subject: 'EVS', type: QuestionType.matching,
+        text: 'Match the animal to its home.',
+        matchingPairs: [
+          MatchingPair(itemA: '🐶', itemB: 'Kennel'),
+          MatchingPair(itemA: '🐦', itemB: 'Nest'),
+          MatchingPair(itemA: '🐄', itemB: 'Shed'),
+        ],
+        visualAid: 'match_pairs',
+      ));
+      // 5. IMAGE_CHOICE_4_IMAGE_QUESTION
+      questions.add(const QuizQuestion(
+        id: 'evs_q5', subject: 'EVS', type: QuestionType.mcq,
+        text: 'Match clothes to the weather: 🌧️',
+        options: [
+          QuestionOption(label: 'A', value: '🧥'),
+          QuestionOption(label: 'B', value: '🧣'),
+          QuestionOption(label: 'C', value: '🩱'),
+          QuestionOption(label: 'D', value: '🧢'),
+        ],
+        correctAnswers: ['🧥'],
+        visualAid: 'image_choice',
+      ));
     }
 
     return questions;
   }
 }
+
+
+
