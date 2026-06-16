@@ -12,6 +12,20 @@ class AppStrings {
     'tap_to_speak': {AppLanguage.english: 'Tap to speak', AppLanguage.gujarati: 'બોલવા માટે ટેપ કરો'},
     'no_questions': {AppLanguage.english: 'No questions available.', AppLanguage.gujarati: 'કોઈ પ્રશ્નો ઉપલબ્ધ નથી.'},
     
+
+    // Student App additions
+    'good_morning_teacher': {AppLanguage.english: 'Good Morning, Teacher!', AppLanguage.gujarati: 'શુભ સવાર, શિક્ષક!'},
+    'assessment_dashboard_today': {AppLanguage.english: "Here's your assessment dashboard for today.", AppLanguage.gujarati: 'અહીં તમારું આજના મૂલ્યાંકન ડેશબોર્ડ છે.'},
+    'now_assessing': {AppLanguage.english: 'Now Assessing', AppLanguage.gujarati: 'હવે મૂલ્યાંકન થઈ રહ્યું છે'},
+
+    'todays_session': {AppLanguage.english: "Today's Session", AppLanguage.gujarati: 'આજનું સત્ર'},
+    'skipped_today': {AppLanguage.english: 'Skipped Today', AppLanguage.gujarati: 'આજે છોડેલા'},
+    'dont_worry': {AppLanguage.english: "Don't worry!", AppLanguage.gujarati: 'ચિંતા કરશો નહીં!'},
+    'try_again_tomorrow': {AppLanguage.english: 'They can try again tomorrow', AppLanguage.gujarati: 'તેઓ આવતીકાલે ફરી પ્રયાસ કરી શકે છે'},
+    'no_skipped_children': {AppLanguage.english: 'No skipped children!', AppLanguage.gujarati: 'કોઈ બાળક છોડવામાં આવ્યું નથી!'},
+    'all_evaluated': {AppLanguage.english: 'All Active Students Evaluated!', AppLanguage.gujarati: 'બધા સક્રિય વિદ્યાર્થીઓનું મૂલ્યાંકન પૂર્ણ થયું!'},
+    'roll_no': {AppLanguage.english: 'Roll No.', AppLanguage.gujarati: 'રોલ નં.'},
+
     // Settings
     'settings': {AppLanguage.english: 'Settings', AppLanguage.gujarati: 'સેટિંગ્સ'},
     'class_settings': {AppLanguage.english: 'Class Settings', AppLanguage.gujarati: 'વર્ગ સેટિંગ્સ'},

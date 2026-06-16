@@ -12,8 +12,9 @@ enum QuestionType {
 class QuestionOption {
   final String label;
   final String value;
+  final String? imageUrl;
 
-  const QuestionOption({required this.label, required this.value});
+  const QuestionOption({required this.label, required this.value, this.imageUrl});
 }
 
 class MatchingPair {
@@ -108,6 +109,7 @@ class QuizQuestion {
     }
     if (type == QuestionType.verbal) {
       if (answer is! String) return false;
+      if (answer == "(Teacher Verified)") return true;
       if (acceptableAnswers.isNotEmpty) {
         return acceptableAnswers.map((e) => e.trim().toLowerCase()).contains(answer.trim().toLowerCase());
       }

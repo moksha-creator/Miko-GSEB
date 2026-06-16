@@ -14,31 +14,14 @@ class BeReadyScreen extends ConsumerStatefulWidget {
 }
 
 class _BeReadyScreenState extends ConsumerState<BeReadyScreen> {
-  int _secondsLeft = 3;
-  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _startCountdown();
-  }
-
-  void _startCountdown() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsLeft > 1) {
-        setState(() {
-          _secondsLeft--;
-        });
-      } else {
-        _timer?.cancel();
-        context.go('/quiz');
-      }
-    });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
     super.dispose();
   }
 
@@ -93,9 +76,10 @@ class _BeReadyScreenState extends ConsumerState<BeReadyScreen> {
                 height: 160,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
+                  color: avatarColor,
                   border: Border.all(color: avatarColor, width: 6),
-                  image: student != null ? DecorationImage(
-                    image: AssetImage('assets/avatars/${student.name.toLowerCase().split(' ')[0]}.png'),
+                  image: student != null && student.avatarAsset.isNotEmpty ? DecorationImage(
+                    image: AssetImage(student.avatarAsset),
                     fit: BoxFit.cover,
                   ) : null,
                   boxShadow: [
@@ -106,6 +90,9 @@ class _BeReadyScreenState extends ConsumerState<BeReadyScreen> {
                     ),
                   ],
                 ),
+                child: student != null && student.avatarAsset.isEmpty 
+                    ? Center(child: Text(student.initials, style: const TextStyle(fontSize: 64, fontWeight: FontWeight.bold, color: Colors.white)))
+                    : null,
               ).animate().scale(delay: 200.ms, duration: 500.ms, curve: Curves.elasticOut),
 
               const SizedBox(height: 32),
@@ -134,38 +121,24 @@ class _BeReadyScreenState extends ConsumerState<BeReadyScreen> {
 
               const SizedBox(height: 64),
 
-              // Pulsing countdown digits
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 20,
-                        ),
-                      ],
-                    ),
+              // Tap to Start button
+              ElevatedButton(
+                onPressed: () => context.go('/quiz'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: avatarColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 24),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+                  elevation: 8,
+                ),
+                child: const Text(
+                  'Tap to Start',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                  Text(
-                    '$_secondsLeft',
-                    key: ValueKey<int>(_secondsLeft),
-                    style: TextStyle(
-                      fontSize: 64,
-                      fontWeight: FontWeight.w900,
-                      color: avatarColor,
-                    ),
-                  )
-                      .animate(key: ValueKey<int>(_secondsLeft))
-                      .scale(begin: const Offset(0.5, 0.5), end: const Offset(1.0, 1.0), duration: 250.ms, curve: Curves.easeOutBack)
-                      .fadeIn(duration: 200.ms),
-                ],
-              ),
+                ),
+              ).animate().scale(delay: 500.ms, duration: 300.ms, curve: Curves.easeOutBack),
             ],
           ),
         ),
@@ -277,24 +250,30 @@ class _NextStudentTransitionScreenState extends ConsumerState<NextStudentTransit
                     curve: Curves.easeInOut,
                   ).fadeIn(duration: 400.ms).fadeOut(delay: 800.ms, duration: 400.ms),
                   
+                  // Student Avatar
                   Container(
                     width: 150,
                     height: 150,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
+                      color: avatarColor,
                       border: Border.all(color: avatarColor, width: 5),
-                      image: student != null ? DecorationImage(
-                        image: AssetImage('assets/avatars/${student.name.toLowerCase().split(' ')[0]}.png'),
+                      image: student != null && student.avatarAsset.isNotEmpty ? DecorationImage(
+                        image: AssetImage(student.avatarAsset),
                         fit: BoxFit.cover,
                       ) : null,
                       boxShadow: [
                         BoxShadow(
                           color: avatarColor.withOpacity(0.2),
                           blurRadius: 20,
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
-                  ),
+                    child: student != null && student.avatarAsset.isEmpty 
+                        ? Center(child: Text(student.initials, style: const TextStyle(fontSize: 56, fontWeight: FontWeight.bold, color: Colors.white)))
+                        : null,
+                  ).animate().scale(delay: 300.ms, duration: 500.ms, curve: Curves.elasticOut),
                 ],
               ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
 

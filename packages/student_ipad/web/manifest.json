@@ -1,11 +1,11 @@
 {
-    "name": "student_ipad",
-    "short_name": "student_ipad",
+    "name": "Miko Assessment",
+    "short_name": "Miko",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Miko GSEB Demo Assessment App",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

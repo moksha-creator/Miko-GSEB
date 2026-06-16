@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:js' as js;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:math' as math;
+import '../providers/planner_state_provider.dart';
 
 // Provider to hold the currently selected student for assessment
 class SelectedStudentNotifier extends Notifier<Student?> {
@@ -200,6 +201,7 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
+      drawer: _buildTeacherDrawer(),
       body: rosterAsync.when(
         data: (profile) => Column(
           children: [
@@ -278,6 +280,13 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
             // Left: Logo + Class 5-B
             Row(
               children: [
+                Builder(
+                  builder: (ctx) => IconButton(
+                    icon: const Icon(Icons.menu, color: Color(0xFF1E293B)),
+                    onPressed: () => Scaffold.of(ctx).openDrawer(),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 // Mascot Icon
                 _buildMikoLogo(size: 52),
                 const SizedBox(width: 12),
@@ -375,6 +384,13 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                 ),
               );
             }),
+            const SizedBox(width: 12),
+            Builder(
+              builder: (ctx) => IconButton(
+                icon: const Icon(Icons.settings_outlined, color: Color(0xFF64748B)),
+                onPressed: () => Scaffold.of(ctx).openDrawer(),
+              ),
+            ),
           ],
         ),
       ),
@@ -1008,6 +1024,78 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTeacherDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(color: Color(0xFF3B82F6)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const Icon(Icons.school, color: Colors.white, size: 48),
+                const SizedBox(height: 12),
+                Text(AppStrings.t('settings', ref.watch(localeProvider)), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+            ListTile(
+              leading: const Icon(Icons.settings_backup_restore, color: Colors.orange),
+              title: const Text('Reset Setup', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+              subtitle: const Text('Clear configuration and restart onboarding'),
+              onTap: () {
+                Navigator.pop(context);
+                ref.read(classSetupProvider.notifier).reset();
+                context.go('/setup');
+              },
+            ),
+          ListTile(
+            leading: const Icon(Icons.book_outlined),
+            title: const Text('Subject Selection'),
+            subtitle: Text('Current: ${ref.watch(selectedSubjectProvider)}'),
+            onTap: () {
+              Navigator.pop(context);
+              _showSubjectDialog();
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.restart_alt, color: Colors.red),
+            title: Text(AppStrings.t('reset_demo_data', ref.watch(localeProvider)), style: const TextStyle(color: Colors.red)),
+            onTap: () {
+               ref.read(completedStudentsProvider.notifier).clear();
+               ref.read(skippedStudentsProvider.notifier).clear();
+               Navigator.pop(context);
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Session reset')));
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSubjectDialog() {
+    final subjects = ['Mathematics', 'Science', 'Language', 'Social Studies'];
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Select Subject'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: subjects.map((s) => ListTile(
+            title: Text(s),
+            onTap: () {
+               ref.read(selectedSubjectProvider.notifier).setSubject(s);
+               Navigator.pop(ctx);
+            },
+          )).toList(),
+        ),
       ),
     );
   }

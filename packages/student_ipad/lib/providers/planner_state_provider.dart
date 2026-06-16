@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_core/shared_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'dart:js' as js;
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('Initialize this in main()');
 });
@@ -31,6 +34,13 @@ class ClassSetupNotifier extends Notifier<ClassSetup?> {
     prefs.setString('class_setup', jsonEncode(setup.toJson()));
     state = setup;
     await ref.read(plannerStateProvider.notifier).generateFromSetup(setup);
+    
+    if (kIsWeb) {
+       try {
+          final encoded = '{"studentCount": ${setup.studentCount}, "activeSubjects": ${jsonEncode(setup.activeSubjects.toList())}}';
+          js.context['localStorage'].callMethod('setItem', ['miko_class_setup', encoded]);
+       } catch(e) {}
+    }
   }
 
   void reset() {

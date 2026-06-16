@@ -15,9 +15,13 @@ class QuizScreen extends ConsumerStatefulWidget {
 }
 
 class _QuizScreenState extends ConsumerState<QuizScreen> {
+  List<QuizQuestion> _questions = [];
+  bool _isLoadingQuestions = true;
+
   int _currentQuestionIndex = 0;
+  dynamic _selectedAnswer;
   int _score = 0;
-  int _timeLeftSeconds = 180; // 3-minute timer
+  int _timeLeftSeconds = 300; // 5-minute timer
   Timer? _timer;
   bool _isSpeaking = false;
   bool _isRecording = false; // Microphone voice animation control
@@ -32,51 +36,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   late List<dynamic> _answers;
   late List<bool> _correctList;
 
-  final List<QuizQuestion> _questions = [
-    const QuizQuestion(
-      id: 'q1',
-      subject: 'Environmental Science',
-      text: "Which of these animals is known as the king of the jungle?",
-      type: QuestionType.mcq,
-      options: [
-        QuestionOption(label: 'Lion', value: 'Lion'),
-        QuestionOption(label: 'Elephant', value: 'Elephant'),
-      ],
-      correctAnswers: ['Lion'],
-      visualAid: 'lion_icon',
-    ),
-    const QuizQuestion(
-      id: 'q2',
-      subject: 'Science',
-      text: "What do plants need to grow and make their food?",
-      type: QuestionType.mcq,
-      options: [
-        QuestionOption(label: 'Sunlight', value: 'Sunlight'),
-        QuestionOption(label: 'Soda', value: 'Soda'),
-      ],
-      correctAnswers: ['Sunlight'],
-    ),
-    const QuizQuestion(
-      id: 'q3',
-      subject: 'Language',
-      text: "Can you speak a sentence about your favorite toy?",
-      type: QuestionType.verbal,
-      options: [],
-      correctAnswers: [],
-    ),
-  ];
 
   @override
   void initState() {
     super.initState();
-    _answers = List.filled(_questions.length, null);
-    _correctList = List.filled(_questions.length, false);
-    _startTimer();
-    _initTts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final student = ref.read(selectedStudentProvider);
+      if (student != null) {
+        _proceedToNextStudent(student);
+      }
+    });
   }
 
   void _initTts() async {
-    await _flutterTts.setLanguage("en-US");
+    await _flutterTts.setLanguage(ref.read(localeProvider) == AppLanguage.gujarati ? "gu-IN" : "en-IN");
     await _flutterTts.setSpeechRate(0.45);
     await _flutterTts.setVolume(1.0);
     await _flutterTts.setPitch(1.0);
@@ -142,27 +115,32 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   void _submitAnswer(dynamic answer) {
     final currentQ = _questions[_currentQuestionIndex];
-    final isCorrect = currentQ.validateAnswer(answer);
+    final isCorrect = answer != null && currentQ.validateAnswer(answer);
     
     setState(() {
-      _answers[_currentQuestionIndex] = answer;
+      _answers[_currentQuestionIndex] = answer == null ? "skipped" : answer;
       _correctList[_currentQuestionIndex] = isCorrect;
-      if (isCorrect) {
-        _score++;
-      }
+      _score = _correctList.where((e) => e).length;
+      _selectedAnswer = null; // reset for next question
     });
 
     final genericPositiveFeedback = [
-      "Amazing effort! 🌟 Let's see what is next!",
-      "Super! You are doing fantastic! 🚀",
-      "On we go! Let's explore the next one! ✨",
-      "Got it! Let's keep this adventure moving! 🎉",
-      "Wonderful work! Sparkling energy! 🌈",
+      ref.read(localeProvider) == AppLanguage.gujarati ? "અદ્ભુત પ્રયાસ! 🌟 ચાલો જોઈએ આગળ શું છે!" : "Amazing effort! 🌟 Let's see what is next!",
+      ref.read(localeProvider) == AppLanguage.gujarati ? "ખૂબ સરસ! તમે શાનદાર કામ કરી રહ્યા છો! 🚀" : "Super! You are doing fantastic! 🚀",
+      ref.read(localeProvider) == AppLanguage.gujarati ? "આગળ વધો! ચાલો આગળનું જોઈએ! ✨" : "On we go! Let's explore the next one! ✨",
+      ref.read(localeProvider) == AppLanguage.gujarati ? "સમજાઈ ગયું! ચાલો આ યાત્રાને આગળ વધારીએ! 🎉" : "Got it! Let's keep this adventure moving! 🎉",
+      ref.read(localeProvider) == AppLanguage.gujarati ? "અદભૂત કાર્ય! શાનદાર ઉર્જા! 🌈" : "Wonderful work! Sparkling energy! 🌈",
     ];
     final randomIndex = DateTime.now().millisecond % genericPositiveFeedback.length;
     
+    final feedbackText = isCorrect || answer == "(Teacher Verified)"
+        ? genericPositiveFeedback[randomIndex]
+        : (answer == null || answer == "skipped" 
+            ? "No worries, let's move to the next one!" 
+            : "Good try! The correct answer was ${currentQ.correctAnswers.isNotEmpty ? currentQ.correctAnswers.first : 'something else'}.");
+    
     setState(() {
-      _overrideAIInstruction = genericPositiveFeedback[randomIndex];
+      _overrideAIInstruction = feedbackText;
     });
 
     _flutterTts.speak(_overrideAIInstruction!);
@@ -210,6 +188,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         rollNo: 0,
         name: '',
         avatarColor: '#000000',
+        avatarAsset: '',
         currentLevels: {},
         flaggedConcepts: [],
         recentSessions: [],
@@ -244,19 +223,29 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     });
   }
 
-  void _proceedToNextStudent(Student nextStudent) {
+  void _proceedToNextStudent(Student nextStudent) async {
     ref.read(selectedStudentProvider.notifier).select(nextStudent);
     setState(() {
-      _currentQuestionIndex = 0;
-      _answers = List.filled(_questions.length, null);
-      _correctList = List.filled(_questions.length, false);
-      _score = 0;
-      _timeLeftSeconds = 180; // Reset 3-minute timer
+      _isLoadingQuestions = true;
       _showNextStudentLoader = false;
-      _overrideAIInstruction = null;
     });
-    _startTimer();
-    _initTts();
+    
+    final questions = await ref.read(mockDataServiceProvider).loadQuestionsForSubject(nextStudent.currentLevels.keys.first);
+    
+    if (mounted) {
+      setState(() {
+        _questions = questions;
+        _currentQuestionIndex = 0;
+        _answers = List.filled(_questions.length, null);
+        _correctList = List.filled(_questions.length, false);
+        _score = 0;
+        _timeLeftSeconds = 300; // Reset 5-minute timer
+        _overrideAIInstruction = null;
+        _isLoadingQuestions = false;
+      });
+      _startTimer();
+      _initTts();
+    }
   }
 
   void _onAssessNowPressed(Student nextStudent) {
@@ -272,11 +261,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     context.go('/');
   }
 
-  String _getAvatarAsset(String id) {
-    final avatars = ['aarav', 'ananya', 'arjun', 'dev', 'diya', 'kavya', 'krish', 'mira', 'priya', 'rohan'];
-    final idx = id.hashCode % avatars.length;
-    return 'assets/avatars/${avatars[idx.abs()]}.png';
-  }
+
 
   void _skipStudent() {
     final student = ref.read(selectedStudentProvider);
@@ -321,11 +306,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingQuestions) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     final student = ref.watch(selectedStudentProvider) ?? Student(
       id: 's001',
       rollNo: 1,
       name: 'Aarav Patel',
       avatarColor: '#E85D55',
+        avatarAsset: '',
       currentLevels: {'Mathematics': 2, 'Science': 2, 'Language': 1, 'Social Studies': 2},
       flaggedConcepts: [],
       recentSessions: [],
@@ -376,191 +363,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             ),
         ],
       ),
-    );
-  }
-
-  Widget _buildMascotPanel(Student student, QuizQuestion question) {
-    return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.015), blurRadius: 15, offset: const Offset(0, 5)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Student Avatar card
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: _colorFromHex(student.avatarColor).withOpacity(0.15),
-                child: Text(
-                  student.name.substring(0, 1),
-                  style: TextStyle(color: _colorFromHex(student.avatarColor), fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  "${student.name.split(' ')[0]}'s Assessment", 
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              
-              // 5-Minute Timer Display
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _timeLeftSeconds <= 60 ? Colors.red.shade50 : AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _timeLeftSeconds <= 60 ? Colors.red.shade300 : Colors.transparent),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.timer_outlined, 
-                      size: 14, 
-                      color: _timeLeftSeconds <= 60 ? Colors.red : AppColors.primary
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatTime(_timeLeftSeconds),
-                      style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: _timeLeftSeconds <= 60 ? Colors.red : AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          
-          const Spacer(),
-          
-          // Mascot robot
-          Center(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                if (_isSpeaking)
-                  Container(
-                    width: 140,
-                    height: 140,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.12),
-                      shape: BoxShape.circle,
-                    ),
-                  ).animate(onPlay: (controller) => controller.repeat()).scale(
-                    begin: const Offset(0.85, 0.85),
-                    end: const Offset(1.25, 1.25),
-                    duration: 1.2.seconds,
-                    curve: Curves.easeInOut,
-                  ).fadeIn(duration: 400.ms).fadeOut(delay: 600.ms, duration: 400.ms),
-
-                Container(
-                  width: 110,
-                  height: 110,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.primary, AppColors.primaryLight],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(color: AppColors.primary.withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 6)),
-                    ],
-                  ),
-                  child: Icon(
-                    _isSpeaking ? Icons.speaker_phone_rounded : Icons.adb_rounded, 
-                    size: 56,
-                    color: Colors.white,
-                  ),
-                ).animate(onPlay: (controller) => controller.repeat(reverse: true)).slideY(
-                  begin: 0,
-                  end: -0.06,
-                  duration: 1.8.seconds,
-                  curve: Curves.easeInOut,
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Speech Bubble
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.primary.withOpacity(0.1)),
-            ),
-            child: Text(
-              _overrideAIInstruction ?? _getAIInstruction(student.name.split(' ')[0]),
-              style: TextStyle(
-                fontSize: 14, 
-                fontWeight: FontWeight.bold, 
-                color: _overrideAIInstruction != null ? AppColors.primary : AppColors.textPrimary, 
-                height: 1.4
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          
-          const Spacer(),
-          
-          // Visual chocolate helper
-          if (question.visualAid == 'chocolate_4_2')
-            _buildVisualAidContainer(question.visualAid!)
-          else
-            const SizedBox(height: 60),
-            
-          const Spacer(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVisualAidContainer(String visualType) {
-    return Column(
-      children: [
-        const Text('🍰 Fraction Visual Aid:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
-        const SizedBox(height: 10),
-        Container(
-          height: 60,
-          width: 180,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.orange.shade700, width: 2.5),
-          ),
-          child: Row(
-            children: List.generate(4, (index) {
-              final isHighlighted = index < 2; 
-              return Expanded(
-                child: Container(
-                  margin: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    color: isHighlighted ? Colors.orange.shade400 : Colors.orange.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ).animate().fadeIn().scale(),
-      ],
     );
   }
 
@@ -812,68 +614,39 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 ],
               ),
 
-              // Animated Pulsing Microphone in center
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isRecording = !_isRecording;
-                      });
-                    },
-                    child: Container(
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        color: _isRecording ? Colors.red : AppColors.primary,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: (_isRecording ? Colors.red : AppColors.primary).withOpacity(0.3),
-                            blurRadius: 10,
-                            spreadRadius: 1,
-                          ),
-                        ],
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          if (_isRecording)
-                            Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.red.withOpacity(0.4), width: 3),
-                              ),
-                            ).animate(onPlay: (controller) => controller.repeat()).scale(
-                              begin: const Offset(0.7, 0.7),
-                              end: const Offset(1.3, 1.3),
-                              duration: 1.seconds,
-                            ).fadeOut(duration: 1.seconds),
-                          Icon(
-                            _isRecording ? Icons.mic_rounded : Icons.mic_none_rounded,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        ],
+              // Teacher Verified Button (Only for verbal questions)
+              if (question.type == QuestionType.verbal)
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        _submitAnswer("(Teacher Verified)");
+                      },
+                      icon: const Icon(Icons.check_circle_outline, size: 28, color: Colors.white),
+                      label: const Text('Mark Heard & Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        elevation: 4,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _isRecording ? 'Listening... Tap to stop' : 'Tap to Answer Orally',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: _isRecording ? Colors.red.shade700 : AppColors.textSecondary,
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Tap when child has answered',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                )
+              else
+                const SizedBox.shrink(),
 
-              // 3-Minute Timer Display
+              // 5-Minute Timer Display
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
@@ -1025,8 +798,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   ),
                   CircleAvatar(
                     radius: 26,
-                    backgroundImage: AssetImage(_getAvatarAsset(nextStudent.id)),
-                    backgroundColor: Colors.white,
+                    backgroundImage: nextStudent.avatarAsset.isNotEmpty ? AssetImage(nextStudent.avatarAsset) : null,
+                    backgroundColor: Color(int.tryParse(nextStudent.avatarColor.replaceFirst('#', '0xFF')) ?? 0xFF3B82F6),
+                    child: nextStudent.avatarAsset.isEmpty ? Text(nextStudent.initials, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)) : null,
                   ),
                 ],
               ),
@@ -1095,15 +869,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     );
   }
 
-  String _getAIInstruction(String firstName) {
-    switch (_currentQuestionIndex) {
-      case 0: return "Hi $firstName! Let's solve today's fraction quest! Tell me what fraction of the chocolate is brown.";
-      case 1: return "Excellent. Choose the option that is equivalent to one-half!";
-      case 2: return "Amazing progress! Look at the pizza problem and pick the correct fraction.";
-      default: return "Answer the question, $firstName!";
-    }
   }
-}
 
 Color _colorFromHex(String hexColor) {
   hexColor = hexColor.replaceAll('#', '');
