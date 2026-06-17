@@ -68,7 +68,10 @@ final skippedStudentsProvider = NotifierProvider<SkippedStudentsNotifier, Set<St
 class IsGujaratiNotifier extends Notifier<bool> {
   @override
   bool build() => false;
-  void toggle() => state = !state;
+  void toggle() {
+    state = !state;
+    ref.read(localeProvider.notifier).setLocale(state ? AppLanguage.gujarati : AppLanguage.english);
+  }
 }
 final isGujaratiProvider = NotifierProvider<IsGujaratiNotifier, bool>(IsGujaratiNotifier.new);
 
