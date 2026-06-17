@@ -23,7 +23,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   int _currentQuestionIndex = 0;
   dynamic _selectedAnswer;
   int _score = 0;
-  int _timeLeftSeconds = 300; // 5-minute timer
+  int _timeLeftSeconds = 180; // 3-minute timer
   Timer? _timer;
   DateTime _questionStartTime = DateTime.now();
   bool _isSpeaking = false;
@@ -33,7 +33,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   // Netflix-style next kid loader state variables
   bool _showNextStudentLoader = false;
-  int _loaderSecondsLeft = 5;
+  int _loaderSecondsLeft = 2;
   Timer? _loaderTimer;
 
   late List<dynamic> _answers;
@@ -225,7 +225,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     if (nextStudent.id != 'none') {
       setState(() {
         _showNextStudentLoader = true;
-        _loaderSecondsLeft = 5;
+        _loaderSecondsLeft = 2;
       });
       _startLoaderTimer(nextStudent);
     } else {
@@ -266,7 +266,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         _answers = List.filled(_questions.length, null);
         _correctList = List.filled(_questions.length, false);
         _score = 0;
-        _timeLeftSeconds = 300; // Reset 5-minute timer
+        _timeLeftSeconds = 180; // Reset 3-minute timer
         _overrideAIInstruction = null;
         _isLoadingQuestions = false;
       });
@@ -376,7 +376,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-                  child: _buildAnswerArena(currentQuestion),
+                  child: _buildAnswerArena(currentQuestion, student),
                 ),
               ),
             ],
@@ -393,7 +393,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     );
   }
 
-  Widget _buildAnswerArena(QuizQuestion question) {
+  Widget _buildAnswerArena(QuizQuestion question, Student student) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       padding: const EdgeInsets.all(28),
@@ -439,11 +439,40 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 },
               ),
               const SizedBox(width: 8),
-              Text(
-                'Assessment: Question ${_currentQuestionIndex + 1} of ${_questions.length}',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    student.name,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.primary),
+                  ),
+                  Text(
+                    'Question ${_currentQuestionIndex + 1} of ${_questions.length}',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                  ),
+                ],
               ),
               const Spacer(),
+              // Timer Display
+              Container(
+                margin: const EdgeInsets.only(right: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _timeLeftSeconds <= 60 ? Colors.red.shade50 : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _timeLeftSeconds <= 60 ? Colors.red.shade200 : Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.timer_outlined, size: 16, color: _timeLeftSeconds <= 60 ? Colors.red : Colors.blue.shade700),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${_timeLeftSeconds ~/ 60}:${(_timeLeftSeconds % 60).toString().padLeft(2, '0')}',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: _timeLeftSeconds <= 60 ? Colors.red : Colors.blue.shade700),
+                    ),
+                  ],
+                ),
+              ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
@@ -776,7 +805,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                     width: 64,
                     height: 64,
                     child: CircularProgressIndicator(
-                      value: _loaderSecondsLeft / 5,
+                      value: _loaderSecondsLeft / 2,
                       strokeWidth: 4,
                       backgroundColor: Colors.white.withOpacity(0.1),
                       valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
