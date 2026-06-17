@@ -64,6 +64,7 @@ class ClassSetup {
       'activeSubjects': activeSubjects,
       'checkpoint': checkpoint,
       'studentNames': studentNames,
+      'sessionsPerWeek': sessionsPerWeek,
     };
   }
 
@@ -78,6 +79,7 @@ class ClassSetup {
     List<String>? activeSubjects,
     String? checkpoint,
     List<String>? studentNames,
+    int? sessionsPerWeek,
   }) {
     return ClassSetup(
       grade: grade ?? this.grade,
@@ -90,6 +92,7 @@ class ClassSetup {
       activeSubjects: activeSubjects ?? this.activeSubjects,
       checkpoint: checkpoint ?? this.checkpoint,
       studentNames: studentNames ?? this.studentNames,
+      sessionsPerWeek: sessionsPerWeek ?? this.sessionsPerWeek,
     );
   }
 }
