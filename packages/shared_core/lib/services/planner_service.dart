@@ -10,8 +10,8 @@ class PlannerService {
 
   int calculateThroughput(ClassSetup setup, {String? subjectId}) {
     if (setup.assessmentMode == 'ded') {
-      int activeDays = setup.schoolDays - 1; // 1 day for non-assessment activities
-      return activeDays * 10; // 10 students per day
+      int perSession = math.max(1, (setup.lectureLength / MIN_S).floor());
+      return math.max(1, perSession * setup.sessionsPerWeek);
     } else {
       double embedTime = setup.lectureLength * EMBED_PERCENTAGE;
       int studentsPerLecture = (embedTime / MIN_S).floor();
@@ -72,10 +72,12 @@ class PlannerService {
         for (int w = 0; w < wps; w++) {
           List<RosterEntry> entries = [];
           int currentWeek = globalWeek + w;
-          for (int d = 0; d < 4; d++) {
-            String dayName = daysOfWeek[d];
-            int dailyCap = (wkCap / 4).ceil();
-            for (int i = 0; i < dailyCap; i++) {
+          int sessions = setup.sessionsPerWeek;
+          int perSession = math.max(1, (setup.lectureLength / MIN_S).floor());
+          
+          for (int s = 0; s < sessions; s++) {
+            String dayName = daysOfWeek[s % daysOfWeek.length];
+            for (int i = 0; i < perSession; i++) {
               if (studentIdx >= students.length || studentIdx >= setup.studentCount) break;
               var st = students[studentIdx];
               entries.add(RosterEntry(studentId: st.id, studentName: st.name, rollNumber: st.rollNo, subject: subjectName, week: currentWeek, day: dayName, level: 'L${st.currentLevels[subjectName] ?? 1}'));

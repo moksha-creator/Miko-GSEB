@@ -7,7 +7,8 @@ class ClassSetup {
   final Map<String, int> subjectLecturesPerWeek;
   final int lectureLength;
   final List<String> activeSubjects;
-  final String checkpoint; // 'monthly', 'quarterly', 'yearly'
+  final String checkpoint;
+  final int sessionsPerWeek; // 'monthly', 'quarterly', 'yearly'
   final List<String>? studentNames; // Added for manual entry
 
   ClassSetup({
@@ -20,6 +21,7 @@ class ClassSetup {
     required this.lectureLength,
     required this.activeSubjects,
     required this.checkpoint,
+    this.sessionsPerWeek = 2,
     this.studentNames,
   });
 
@@ -45,6 +47,7 @@ class ClassSetup {
       lectureLength: json['lectureLength'] ?? 45,
       activeSubjects: List<String>.from(json['activeSubjects'] ?? []),
       checkpoint: json['checkpoint'] ?? 'monthly',
+      sessionsPerWeek: json['sessionsPerWeek'] ?? 2,
       studentNames: json['studentNames'] != null ? List<String>.from(json['studentNames']) : null,
     );
   }
