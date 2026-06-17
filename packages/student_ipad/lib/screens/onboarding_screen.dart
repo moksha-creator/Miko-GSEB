@@ -26,6 +26,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     {'id': 'eng', 'name': 'English', 'c': const Color(0xFF2563EB)},
     {'id': 'guj', 'name': 'Gujarati', 'c': const Color(0xFF7C3AED)},
     {'id': 'evs', 'name': 'EVS', 'c': const Color(0xFF059669)},
+    {'id': 'sci', 'name': 'Science', 'c': const Color(0xFF059669)},
+    {'id': 'lang', 'name': 'Language', 'c': const Color(0xFF2563EB)},
+    {'id': 'soc', 'name': 'Social Studies', 'c': const Color(0xFFD97706)},
   ];
 
   @override
@@ -538,7 +541,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             const Text('Lectures per week', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
             ...draft.activeSubjects.map((subId) {
-              final sub = _allSubjects.firstWhere((s) => s['id'] == subId);
+              final sub = _allSubjects.firstWhere((s) => s['id'] == subId, orElse: () => {'id': subId, 'name': subId, 'c': Colors.grey});
               final val = draft.subjectLecturesPerWeek[subId] ?? 4;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -639,7 +642,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       int weeksPerSub = (draft.studentCount / throughput).ceil();
       int startWk = 1;
       for (var subId in draft.activeSubjects) {
-        String subName = _allSubjects.firstWhere((s) => s['id'] == subId)['name'];
+        String subName = _allSubjects.firstWhere((s) => s['id'] == subId, orElse: () => {'id': subId, 'name': subId, 'c': Colors.grey})['name'];
         int endWk = startWk + weeksPerSub - 1;
         String wStr = startWk == endWk ? 'wk $startWk' : 'wks $startWk-$endWk';
         rows.add(_buildBreakdownRow(subName, '${draft.studentCount}', wStr));
@@ -647,7 +650,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       }
     } else {
       for (var subId in draft.activeSubjects) {
-        String subName = _allSubjects.firstWhere((s) => s['id'] == subId)['name'];
+        String subName = _allSubjects.firstWhere((s) => s['id'] == subId, orElse: () => {'id': subId, 'name': subId, 'c': Colors.grey})['name'];
         int tp = _planner.calculateThroughput(draft, subjectId: subId);
         int wps = (draft.studentCount / tp).ceil();
         rows.add(_buildBreakdownRow(subName, '${draft.studentCount}', 'wks 1-$wps'));
