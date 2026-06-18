@@ -107,7 +107,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final mockService = ref.read(mockDataServiceProvider);
     
     final level = isGuj ? "gujarati" : "grade_5_math_adaptive";
-    final questions = await mockService.loadSubjectQuiz(level);
+    final questions = await mockService.loadQuestionsForSubject(subject);
 
     if (mounted) {
       setState(() {
@@ -137,11 +137,33 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   void _submitAnswer(dynamic answer) {
     if (_questions.isEmpty || _currentQuestionIndex >= _questions.length) return;
 
-    final isCorrect = _questions[_currentQuestionIndex].checkAnswer(answer);
+    final currentQ = _questions[_currentQuestionIndex];
+    final isCorrect = answer != null && currentQ.validateAnswer(answer);
     if (isCorrect) _score++;
     
     _answers[_currentQuestionIndex] = answer;
     _correctList[_currentQuestionIndex] = isCorrect;
+    
+    final student = ref.read(selectedStudentProvider);
+    final subject = ref.read(selectedSubjectProvider);
+    if (student != null) {
+      final timeSpent = DateTime.now().difference(_questionStartTime).inSeconds;
+      final response = QuizResponse(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        studentId: student.id,
+        studentName: student.name,
+        subject: subject,
+        chapter: 'Unit 1',
+        questionId: currentQ.id,
+        questionText: currentQ.text,
+        questionType: currentQ.type,
+        isCorrect: isCorrect,
+        submittedAnswer: answer?.toString() ?? 'skipped',
+        timeSpentSeconds: timeSpent,
+        timestamp: DateTime.now(),
+      );
+      ref.read(reportingServiceProvider).saveResponse(response);
+    }
 
     if (_currentQuestionIndex < _questions.length - 1) {
       setState(() {
@@ -188,20 +210,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     _flutterTts.stop();
     
     final student = ref.read(selectedStudentProvider);
-    final subject = ref.read(selectedSubjectProvider);
 
     if (student != null && !isSkip) {
-      final sessionRecord = AssessmentSession(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        studentId: student.id,
-        timestamp: DateTime.now(),
-        subject: subject,
-        totalQuestions: _questions.length,
-        score: _score,
-        answers: _answers.map((a) => a?.toString() ?? 'skipped').toList(),
-        correctList: _correctList,
-      );
-      ref.read(reportingLogProvider.notifier).addSession(sessionRecord);
       ref.read(completedStudentsProvider.notifier).markCompleted(student.id);
     }
 
@@ -430,7 +440,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Widget _buildAnswerArena(QuizQuestion currentQ) {
-    if (currentQ.type == 'mcq') {
+    if (currentQ.type == QuestionType.mcq) {
       return GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -440,16 +450,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
         ),
-        itemCount: currentQ.options?.length ?? 0,
+        itemCount: currentQ.options.length,
         itemBuilder: (context, index) {
-          final option = currentQ.options![index];
-          final isSelected = _selectedAnswer == option;
-          final isImage = option.startsWith('assets/') || option.startsWith('[image:') || option.contains(RegExp(r'[☀-⛿✀-➿ἰ0-ὟFὠ0-ὤFὨ0-ὯFᾐ0-ᾟF]'));
+          final option = currentQ.options[index];
+          final isSelected = _selectedAnswer == option.value;
+          final isImage = option.value.startsWith('assets/') || option.value.startsWith('[image:') || option.value.contains(RegExp(r'[☀-⛿✀-➿ἰ0-ὟFὠ0-ὤFὨ0-ὯFᾐ0-ᾟF]'));
           
           return InkWell(
             onTap: () {
               setState(() {
-                _selectedAnswer = option;
+                _selectedAnswer = option.value;
               });
             },
             child: AnimatedContainer(
@@ -465,9 +475,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               ),
               child: Center(
                 child: isImage 
-                  ? (option.startsWith('assets/') ? Image.network(option, height: 60, errorBuilder: (c,e,s) => const Icon(Icons.broken_image)) : Text(option, style: const TextStyle(fontSize: 48)))
+                  ? (option.value.startsWith('assets/') ? Image.network(option.value, height: 60, errorBuilder: (c,e,s) => const Icon(Icons.broken_image)) : Text(option.label, style: const TextStyle(fontSize: 48)))
                   : Text(
-                      option,
+                      option.label,
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
