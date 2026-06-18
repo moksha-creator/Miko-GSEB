@@ -169,6 +169,89 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
     }
   }
 
+  void _showPasswordDialog(BuildContext context, VoidCallback onSuccess) {
+    final tc = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Enter Teacher Password', style: TextStyle(fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: TextField(
+          controller: tc,
+          obscureText: true,
+          decoration: InputDecoration(
+            hintText: 'Password is "1234"',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => context.pop(), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              if (tc.text == '1234') {
+                context.pop();
+                onSuccess();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Incorrect Password')));
+              }
+            },
+            child: const Text('Submit'),
+          )
+        ],
+      ),
+    );
+  }
+
+  void _showSettingsMenu() {
+    _showPasswordDialog(context, () {
+      showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        builder: (c) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Teacher Settings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Icon(Icons.analytics, color: AppColors.primary),
+                  title: const Text('Reports & Analytics', style: TextStyle(fontWeight: FontWeight.bold)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  tileColor: AppColors.surface,
+                  onTap: () {
+                    context.pop();
+                    context.push('/reports');
+                  },
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  leading: const Icon(Icons.refresh, color: Colors.red),
+                  title: const Text('Reset Data & Schedule', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  tileColor: Colors.red.withOpacity(0.05),
+                  onTap: () {
+                    context.pop();
+                    ref.read(classSetupProvider.notifier).reset();
+                    ref.read(plannerStateProvider.notifier).reset();
+                    ref.read(addedStudentsProvider.notifier).clear();
+                    context.go('/setup');
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
   void _showSubjectDialog() {
     showDialog(
       context: context,
@@ -260,16 +343,9 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                     label: Text(isGuj ? 'EN' : 'ગુ', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
                   ),
                   const SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => context.push('/reports'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: const Icon(Icons.analytics),
-                    label: const Text('Reports'),
+                  IconButton(
+                    icon: const Icon(Icons.menu, color: AppColors.textPrimary, size: 28),
+                    onPressed: _showSettingsMenu,
                   ),
                 ],
               ),
