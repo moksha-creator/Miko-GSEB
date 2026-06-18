@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_core/shared_core.dart';
 import 'student_profiles_screen.dart';
+import '../providers/planner_state_provider.dart';
 
 class SessionEndScreen extends ConsumerWidget {
   const SessionEndScreen({Key? key}) : super(key: key);
@@ -10,8 +11,12 @@ class SessionEndScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final subject = ref.watch(selectedSubjectProvider);
-    final completed = ref.watch(completedStudentsProvider);
-    final skipped = ref.watch(skippedStudentsProvider);
+    final allStudents = ref.watch(allStudentsProvider);
+    final coverageService = ref.watch(coverageServiceProvider);
+    final currentCheckpointId = ref.watch(classSetupProvider)?.checkpoint ?? 'monthly';
+    
+    final coveredCount = coverageService.getCoveredCount(subject, currentCheckpointId, allStudents);
+    final absentCount = coverageService.getAbsentCount(subject, currentCheckpointId, allStudents);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -55,8 +60,8 @@ class SessionEndScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildStatCard('Assessed', completed.length, AppColors.success),
-                  _buildStatCard('Absent/Skipped', skipped.length, AppColors.accent),
+                  _buildStatCard('Assessed', coveredCount, AppColors.success),
+                  _buildStatCard('Absent/Skipped', absentCount, AppColors.accent),
                 ],
               ),
               const SizedBox(height: 48),

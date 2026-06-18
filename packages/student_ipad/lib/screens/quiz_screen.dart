@@ -9,6 +9,7 @@ import 'package:shared_core/shared_core.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'student_profiles_screen.dart';
 import 'quiz/question_templates.dart';
+import '../providers/planner_state_provider.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({Key? key}) : super(key: key);
@@ -180,8 +181,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   void _skipStudent() {
     final student = ref.read(selectedStudentProvider);
+    final currentCheckpointId = ref.read(classSetupProvider)?.checkpoint ?? 'monthly';
+    final subject = ref.read(selectedSubjectProvider);
+    
     if (student != null) {
-      ref.read(skippedStudentsProvider.notifier).skip(student.id);
+      ref.read(coverageServiceProvider).defer(student.id, currentCheckpointId, subject, DateTime.now());
     }
     _completeAssessmentFlow(isSkip: true);
   }
@@ -223,18 +227,25 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     _flutterTts.stop();
     
     final student = ref.read(selectedStudentProvider);
+    final currentCheckpointId = ref.read(classSetupProvider)?.checkpoint ?? 'monthly';
+    final subject = ref.read(selectedSubjectProvider);
 
     if (student != null && !isSkip) {
-      ref.read(completedStudentsProvider.notifier).markCompleted(student.id);
+      ref.read(coverageServiceProvider).markCovered(student.id, currentCheckpointId, subject, DateTime.now());
     }
 
     final allStudents = ref.read(allStudentsProvider);
-    final completed = ref.read(completedStudentsProvider);
-    final skipped = ref.read(skippedStudentsProvider);
-    final pending = allStudents.where((s) => !completed.contains(s.id) && !skipped.contains(s.id)).toList();
+    final coverageService = ref.read(coverageServiceProvider);
 
-    if (pending.isNotEmpty) {
-      ref.read(selectedStudentProvider.notifier).select(pending.first);
+    final next = coverageService.assignNext(
+      eligible: allStudents,
+      subjectId: subject,
+      checkpointId: currentCheckpointId,
+      now: DateTime.now(),
+    );
+
+    if (next != null) {
+      ref.read(selectedStudentProvider.notifier).select(next);
       context.go('/next-student-transition', extra: isSkip ? null : student?.name);
     } else {
       ref.read(selectedStudentProvider.notifier).select(null);

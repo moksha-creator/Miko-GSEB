@@ -56,8 +56,7 @@ class ScheduleScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final students = ref.watch(allStudentsProvider);
-    final completed = ref.watch(completedStudentsProvider);
-    final skipped = ref.watch(skippedStudentsProvider);
+    final coverageService = ref.watch(coverageServiceProvider);
 
     final weeksCount = _getWeeks();
     final studentsPerCohort = (students.length / weeksCount).ceil();
@@ -79,17 +78,17 @@ class ScheduleScreen extends ConsumerWidget {
           itemCount: weeksCount + 1, // +1 for Floater Day
           itemBuilder: (context, index) {
             if (index == weeksCount) {
-              return _buildFloaterDaySection(students, skipped, studentsPerCohort, weeksCount);
+              return _buildFloaterDaySection(students, coverageService, studentsPerCohort, weeksCount);
             }
 
-            return _buildWeekCard(index, students, completed, skipped, studentsPerCohort, weeksCount);
+            return _buildWeekCard(index, students, coverageService, studentsPerCohort, weeksCount);
           },
         ),
       ),
     );
   }
 
-  Widget _buildWeekCard(int weekIndex, List<Student> students, Set<String> completed, Set<String> skipped, int studentsPerCohort, int totalWeeks) {
+  Widget _buildWeekCard(int weekIndex, List<Student> students, CoverageService coverageService, int studentsPerCohort, int totalWeeks) {
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       padding: const EdgeInsets.all(24),
@@ -147,7 +146,7 @@ class ScheduleScreen extends ConsumerWidget {
                     separatorBuilder: (_, __) => const Divider(height: 16),
                     itemBuilder: (context, idx) {
                       final student = cohortStudents[idx];
-                      return _buildStudentRow(student, subjectId, completed, skipped);
+                      return _buildStudentRow(student, subjectId, coverageService);
                     },
                   ),
                 ],
@@ -159,8 +158,10 @@ class ScheduleScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildFloaterDaySection(List<Student> allStudents, Set<String> skipped, int studentsPerCohort, int totalWeeks) {
-    final absentStudents = allStudents.where((s) => skipped.contains(s.id)).toList();
+  Widget _buildFloaterDaySection(List<Student> allStudents, CoverageService coverageService, int studentsPerCohort, int totalWeeks) {
+    final absentStudents = allStudents.where((s) {
+      return setup.activeSubjects.any((subId) => coverageService.getStudentStatus(s.id, setup.checkpoint, subId) == 'absentToday');
+    }).toList();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
@@ -232,16 +233,18 @@ class ScheduleScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStudentRow(Student student, String subjectId, Set<String> completed, Set<String> skipped) {
+  Widget _buildStudentRow(Student student, String subjectId, CoverageService coverageService) {
+    String statusStr = coverageService.getStudentStatus(student.id, setup.checkpoint, subjectId);
+    
     String status = 'Pending';
     Color statusColor = Colors.grey;
     Color statusBg = Colors.grey.shade100;
 
-    if (completed.contains(student.id)) {
+    if (statusStr == 'covered') {
       status = 'Completed';
       statusColor = Colors.green;
       statusBg = Colors.green.shade50;
-    } else if (skipped.contains(student.id)) {
+    } else if (statusStr == 'absentToday') {
       status = 'Absent';
       statusColor = Colors.red;
       statusBg = Colors.red.shade50;

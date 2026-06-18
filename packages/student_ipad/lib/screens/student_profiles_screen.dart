@@ -27,42 +27,7 @@ final classRosterProvider = FutureProvider<ClassProfile>((ref) async {
   return service.loadClassSample();
 });
 
-// Provider to track completed student IDs
-class CompletedStudentsNotifier extends Notifier<Set<String>> {
-  @override
-  Set<String> build() => {};
-
-  void markCompleted(String studentId) {
-    state = {...state}..add(studentId);
-  }
-  
-  void clear() {
-    state = {};
-  }
-}
-
-final completedStudentsProvider = NotifierProvider<CompletedStudentsNotifier, Set<String>>(CompletedStudentsNotifier.new);
-
-// Provider to track skipped student IDs
-class SkippedStudentsNotifier extends Notifier<Set<String>> {
-  @override
-  Set<String> build() => {};
-
-  void skip(String studentId) {
-    state = {...state}..add(studentId);
-  }
-
-  void unskip(String studentId) {
-    state = {...state}..remove(studentId);
-  }
-
-  void clear() {
-    state = {};
-  }
-}
-
-
-final skippedStudentsProvider = NotifierProvider<SkippedStudentsNotifier, Set<String>>(SkippedStudentsNotifier.new);
+// (Old completion and skipped providers removed in favor of CoverageService)
 
 // Language Provider
 class IsGujaratiNotifier extends Notifier<bool> {
@@ -343,23 +308,31 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                 error: (e, st) => Center(child: Text('Error: $e')),
                 data: (profile) {
                   final allStudents = ref.watch(allStudentsProvider);
-                  final completed = ref.watch(completedStudentsProvider);
-                  final skipped = ref.watch(skippedStudentsProvider);
+                  final coverageService = ref.watch(coverageServiceProvider);
+                  final setup = ref.watch(classSetupProvider);
+                  final currentCheckpointId = setup?.checkpoint ?? 'monthly';
                   
-                  // Pending queue
-                  final pending = allStudents.where((s) => !completed.contains(s.id) && !skipped.contains(s.id)).toList();
-                  
-                  // Auto-select top student
+                  // Auto-select next student using CoverageService
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     final currentlySelected = ref.read(selectedStudentProvider);
-                    if (pending.isNotEmpty && (currentlySelected == null || !pending.any((s) => s.id == currentlySelected.id))) {
-                      ref.read(selectedStudentProvider.notifier).select(pending.first);
-                    } else if (pending.isEmpty && currentlySelected != null) {
-                      ref.read(selectedStudentProvider.notifier).select(null);
+                    final next = coverageService.assignNext(
+                      eligible: allStudents,
+                      subjectId: subject,
+                      checkpointId: currentCheckpointId,
+                      now: DateTime.now(),
+                    );
+                    
+                    if (currentlySelected?.id != next?.id) {
+                      ref.read(selectedStudentProvider.notifier).select(next);
                     }
                   });
 
                   final activeStudent = ref.watch(selectedStudentProvider);
+                  
+                  // For the UI counters
+                  final coveredCount = coverageService.getCoveredCount(subject, currentCheckpointId, allStudents);
+                  final absentCount = coverageService.getAbsentCount(subject, currentCheckpointId, allStudents);
+                  final pendingCount = allStudents.length - coveredCount - absentCount;
                   
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,16 +348,16 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))],
                           ),
-                          child: pending.isEmpty
+                          child: activeStudent == null
                             ? const Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(Icons.check_circle, size: 80, color: AppColors.success),
                                     SizedBox(height: 24),
-                                    Text('Session Complete', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                                    Text('Checkpoint Complete', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                                     SizedBox(height: 8),
-                                    Text('All students have been processed.', style: TextStyle(color: AppColors.textSecondary)),
+                                    Text('All covered — switch subject or finish.', style: TextStyle(color: AppColors.textSecondary)),
                                   ],
                                 ),
                               )
@@ -415,9 +388,15 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                                       Expanded(
                                         child: TextButton.icon(
                                           onPressed: () {
-                                            if (activeStudent != null) {
-                                              ref.read(skippedStudentsProvider.notifier).skip(activeStudent.id);
-                                            }
+                                              if (activeStudent != null) {
+                                                ref.read(coverageServiceProvider).markAbsentToday(
+                                                  activeStudent.id,
+                                                  ref.read(classSetupProvider)?.checkpoint ?? 'monthly',
+                                                  ref.read(selectedSubjectProvider),
+                                                );
+                                                // Trigger rebuild
+                                                ref.read(selectedStudentProvider.notifier).select(null);
+                                              }
                                           },
                                           icon: const Icon(Icons.person_off),
                                           label: Text(_t('mark_absent', isGuj), style: const TextStyle(fontSize: 16)),
@@ -472,7 +451,7 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                                       children: [
                                         Text(_t('todays_roster', isGuj), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                                         const Spacer(),
-                                        Text('${completed.length} ${_t('done', isGuj).toLowerCase()} · ${skipped.length} ${_t('absent', isGuj).toLowerCase()}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                                        Text('$coveredCount ${_t('done', isGuj).toLowerCase()} · $absentCount ${_t('absent', isGuj).toLowerCase()}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                                       ],
                                     ),
                                     const SizedBox(height: 16),
@@ -482,18 +461,18 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                                         children: [
                                           if (allStudents.isNotEmpty)
                                             Expanded(
-                                              flex: completed.length,
-                                              child: Container(height: 8, color: AppColors.success),
+                                              flex: coveredCount > 0 ? coveredCount : 1,
+                                              child: Container(height: 8, color: coveredCount > 0 ? AppColors.success : Colors.transparent),
                                             ),
                                           if (allStudents.isNotEmpty)
                                             Expanded(
-                                              flex: skipped.length,
-                                              child: Container(height: 8, color: AppColors.accent),
+                                              flex: absentCount > 0 ? absentCount : 1,
+                                              child: Container(height: 8, color: absentCount > 0 ? AppColors.accent : Colors.transparent),
                                             ),
                                           if (allStudents.isNotEmpty)
                                             Expanded(
-                                              flex: pending.length,
-                                              child: Container(height: 8, color: Colors.grey.shade200),
+                                              flex: pendingCount > 0 ? pendingCount : 1,
+                                              child: Container(height: 8, color: pendingCount > 0 ? Colors.grey.shade200 : Colors.transparent),
                                             ),
                                         ],
                                       ),
@@ -508,8 +487,11 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                                   itemCount: allStudents.length,
                                   itemBuilder: (context, i) {
                                     final st = allStudents[i];
-                                    final isDone = completed.contains(st.id);
-                                    final isSkipped = skipped.contains(st.id);
+                                    final currentCheckpointId = ref.read(classSetupProvider)?.checkpoint ?? 'monthly';
+                                    final status = ref.read(coverageServiceProvider).getStudentStatus(st.id, currentCheckpointId, subject);
+                                    
+                                    final isDone = status == 'covered';
+                                    final isSkipped = status == 'absentToday';
                                     final isNext = activeStudent?.id == st.id;
                                     
                                     Color textColor = isDone ? Colors.grey.shade400 : (isSkipped ? AppColors.accent.withOpacity(0.5) : AppColors.textPrimary);
@@ -545,9 +527,6 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
             
             // INSTRUCTION FOOTER
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              color: Colors.white,
               child: Text(
                 _t('call_child_to_board', isGuj),
                 textAlign: TextAlign.center,

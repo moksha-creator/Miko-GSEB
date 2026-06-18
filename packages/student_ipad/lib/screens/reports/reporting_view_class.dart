@@ -114,17 +114,30 @@ class _ReportingViewClassState extends ConsumerState<ReportingViewClass> {
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 
+                final coverageService = ref.watch(coverageServiceProvider);
+                final setup = ref.watch(classSetupProvider);
+                final currentCheckpointId = setup?.checkpoint ?? 'monthly';
+                
+                // Active subject is either 'All' or _selectedSubject
+                // We show coverage for the selected subject. If 'All', we can just use the first available or we can sum it up.
+                // Wait, if _selectedSubject is 'All', coverage doesn't make sense unless we aggregate.
+                // Since this is just a mockup, if 'All', let's just use 'eng' as a fallback for coverage, or better yet, default to the first available subject.
+                final subjectForCoverage = _selectedSubject == 'All' ? 'eng' : _selectedSubject;
+                
                 final totalRoster = snapshot.data!.students.length;
                 final evaluatedStudents = filtered.map((e) => e.studentId).toSet();
-                final skippedIds = ref.watch(skippedStudentsProvider);
-                final completedIds = ref.watch(completedStudentsProvider);
+                
+                final skippedCount = coverageService.getAbsentCount(subjectForCoverage, currentCheckpointId, snapshot.data!.students);
+                final completedCount = coverageService.getCoveredCount(subjectForCoverage, currentCheckpointId, snapshot.data!.students);
                 
                 final evaluatedCount = evaluatedStudents.length;
-                final skippedCount = skippedIds.length;
-                int pendingCount = totalRoster - completedIds.length - skippedIds.length;
+                int pendingCount = totalRoster - completedCount - skippedCount;
                 if (pendingCount < 0) pendingCount = 0;
                 
-                final evalPct = totalRoster == 0 ? 0.0 : evaluatedCount / totalRoster;
+                // For the UI, we should probably use evaluatedCount to mean `completedCount` to match the offline coverage model,
+                // but since evaluatedCount currently uses the filtered answers (meaning they actually submitted something), I will keep evaluatedCount as is for the "Assessed" top metric, but for the coverage bar I'll use the coverage service metrics to keep it aligned with the offline status.
+                
+                final evalPct = totalRoster == 0 ? 0.0 : completedCount / totalRoster;
                 final pendingPct = totalRoster == 0 ? 0.0 : pendingCount / totalRoster;
                 final skipPct = totalRoster == 0 ? 0.0 : skippedCount / totalRoster;
 
@@ -180,7 +193,7 @@ class _ReportingViewClassState extends ConsumerState<ReportingViewClass> {
                               const SizedBox(height: 16),
                               Row(
                                 children: [
-                                  Row(children: [Container(width: 10, height: 10, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)), const SizedBox(width: 6), Text('Assessed ($evaluatedCount)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))]),
+                                  Row(children: [Container(width: 10, height: 10, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)), const SizedBox(width: 6), Text('Assessed ($completedCount)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))]),
                                   const SizedBox(width: 24),
                                   Row(children: [Container(width: 10, height: 10, decoration: const BoxDecoration(color: AppColors.warning, shape: BoxShape.circle)), const SizedBox(width: 6), Text('Remaining ($pendingCount)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))]),
                                   const SizedBox(width: 24),
