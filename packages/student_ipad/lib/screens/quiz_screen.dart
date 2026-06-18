@@ -525,12 +525,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: isImage
-                          ? Image.network(
-                              opt.value,
-                              fit: BoxFit.contain,
-                              errorBuilder: (c, e, s) =>
-                                  const Icon(Icons.broken_image, size: 40),
-                            )
+                          ? (opt.value.startsWith('http')
+                              ? Image.network(
+                                  opt.value,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (c, e, s) =>
+                                      const Icon(Icons.broken_image, size: 40),
+                                )
+                              : Image.asset(
+                                  opt.value,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (c, e, s) =>
+                                      const Icon(Icons.broken_image, size: 40),
+                                ))
                           : Text(
                               opt.value,
                               textAlign: TextAlign.center,
@@ -615,7 +622,7 @@ class _InteractivePuzzleWidgetState extends State<InteractivePuzzleWidget> {
     final isImage = isAsset || itemText.startsWith('[image:') || itemText.contains(RegExp(r'[\u2600-\u26FF\u2700-\u27BF\u1F300-\u1F5FF\u1F600-\u1F64F\u1F680-\u1F6FF\u1F900-\u1F9FF]'));
     
     final contentWidget = isAsset
-        ? Image.network(itemText, height: 35, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, size: 35))
+        ? Image.asset(itemText, height: 35, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, size: 35))
         : Text(
             itemText,
             style: TextStyle(
@@ -691,7 +698,7 @@ class _InteractivePuzzleWidgetState extends State<InteractivePuzzleWidget> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         isBucketImage && bucketLabel.startsWith('assets/')
-                          ? Image.network(bucketLabel, height: 40, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, size: 40))
+                          ? Image.asset(bucketLabel, height: 40, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, size: 40))
                           : Text(bucketLabel, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 14), textAlign: TextAlign.center),
                         const Divider(),
                         if (assignedIndices.isEmpty)
@@ -819,7 +826,7 @@ class _InteractivePuzzleWidgetState extends State<InteractivePuzzleWidget> {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: item.startsWith('assets/') ? Align(alignment: Alignment.centerLeft, child: Image.network(item, height: 30, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, size: 30))) : Text(
+                        child: item.startsWith('assets/') ? Align(alignment: Alignment.centerLeft, child: Image.asset(item, height: 30, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, size: 30))) : Text(
                           item, 
                           style: TextStyle(
                             fontSize: isImage ? 12 : 14,
