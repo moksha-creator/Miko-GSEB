@@ -19,35 +19,11 @@ class ScheduleScreen extends ConsumerWidget {
     }
   }
 
-  String _getSubjectName(String subId) {
-    switch (subId) {
-      case 'math': return 'Mathematics';
-      case 'sci': return 'Science';
-      case 'lang': return 'Language';
-      case 'soc': return 'Social Studies';
-      default: return subId;
-    }
-  }
+  String _getSubjectName(String subId) => Subjects.name(subId);
 
-  IconData _getSubjectIcon(String subId) {
-    switch (subId) {
-      case 'math': return Icons.calculate;
-      case 'sci': return Icons.science;
-      case 'lang': return Icons.menu_book;
-      case 'soc': return Icons.public;
-      default: return Icons.book;
-    }
-  }
+  IconData _getSubjectIcon(String subId) => Subjects.icon(subId);
 
-  Color _getSubjectColor(String subId) {
-    switch (subId) {
-      case 'math': return Colors.blue;
-      case 'sci': return Colors.green;
-      case 'lang': return Colors.purple;
-      case 'soc': return Colors.orange;
-      default: return Colors.blueGrey;
-    }
-  }
+  Color _getSubjectColor(String subId) => Subjects.color(subId);
 
   List<Student> _getCohortStudents(List<Student> allStudents, int cohortIndex, int studentsPerCohort) {
     final startIndex = cohortIndex * studentsPerCohort;

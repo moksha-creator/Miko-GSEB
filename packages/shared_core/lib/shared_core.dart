@@ -1,6 +1,7 @@
 library shared_core;
 
 export 'models/student.dart';
+export 'models/subjects.dart';
 export 'models/class_profile.dart';
 export 'models/session.dart';
 export 'models/quiz_models.dart';

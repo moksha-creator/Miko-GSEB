@@ -26,9 +26,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     {'id': 'eng', 'name': 'English', 'c': const Color(0xFF2563EB)},
     {'id': 'guj', 'name': 'Gujarati', 'c': const Color(0xFF7C3AED)},
     {'id': 'evs', 'name': 'EVS', 'c': const Color(0xFF059669)},
-    {'id': 'sci', 'name': 'Science', 'c': const Color(0xFF059669)},
-    {'id': 'lang', 'name': 'Language', 'c': const Color(0xFF2563EB)},
-    {'id': 'soc', 'name': 'Social Studies', 'c': const Color(0xFFD97706)},
+    
+    
+    
   ];
 
   @override

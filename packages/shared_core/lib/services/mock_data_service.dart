@@ -333,7 +333,7 @@ class MockDataService {
         visualAid: 'voice_response',
       ));
 
-    } else if (lowerSubject.contains('evs') || lowerSubject.contains('sci')) {
+    } else if (lowerSubject.contains('evs')) {
       // 1. TWO_BUCKET_SORT_IMAGE_QUESTION
       questions.add(const QuizQuestion(
         id: 'evs_q1', subject: 'EVS', type: QuestionType.sorting,

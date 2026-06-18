@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import '../models/class_setup.dart';
 import '../models/planner_models.dart';
+import '../models/subjects.dart';
 import '../models/student.dart';
 
 class PlannerService {
@@ -119,13 +120,5 @@ class PlannerService {
     return PlannerState(weeklyPlan: weeklyPlan);
   }
 
-  String _getSubjectName(String id) {
-    switch (id) {
-      case 'math': return 'Mathematics';
-      case 'sci': return 'Science';
-      case 'lang': return 'Language';
-      case 'soc': return 'Social Studies';
-      default: return id;
-    }
-  }
+  String _getSubjectName(String id) => Subjects.name(id);
 }

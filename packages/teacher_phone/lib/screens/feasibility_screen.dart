@@ -99,13 +99,7 @@ class _FeasibilityScreenState extends ConsumerState<FeasibilityScreen> {
     String? bottleneckSubjectId = _planner.getBottleneckSubject(currentSetup);
     String bottleneckName = '';
     if (bottleneckSubjectId != null) {
-      switch (bottleneckSubjectId) {
-        case 'math': bottleneckName = 'Mathematics'; break;
-        case 'sci': bottleneckName = 'Science'; break;
-        case 'lang': bottleneckName = 'Language'; break;
-        case 'soc': bottleneckName = 'Social Studies'; break;
-        default: bottleneckName = bottleneckSubjectId;
-      }
+      bottleneckName = Subjects.name(bottleneckSubjectId);
     } else {
       throughput = _planner.calculateThroughput(currentSetup);
     }
@@ -176,13 +170,7 @@ class _FeasibilityScreenState extends ConsumerState<FeasibilityScreen> {
                   else ...currentSetup.activeSubjects.map((subId) {
                     int subTp = _planner.calculateThroughput(currentSetup, subjectId: subId);
                     String subName = '';
-                    switch (subId) {
-                      case 'math': subName = 'Mathematics'; break;
-                      case 'sci': subName = 'Science'; break;
-                      case 'lang': subName = 'Language'; break;
-                      case 'soc': subName = 'Social Studies'; break;
-                      default: subName = subId;
-                    }
+                    subName = Subjects.name(subId);
                     return _buildDetailRow('$subName Throughput', '$subTp/wk', 'Parallel embedded assessments');
                   }),
                   _buildDetailRow('Total assessment time', '$totalTime min', 'For one full round of the class'),

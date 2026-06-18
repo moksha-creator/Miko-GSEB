@@ -17,9 +17,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int studentCount = 40;
   int schoolDays = 5;
   String mode = 'ded'; 
-  Map<String, int> subjectLecturesPerWeek = {'math': 4, 'sci': 4, 'lang': 4, 'soc': 4};
+  Map<String, int> subjectLecturesPerWeek = {'math': 4, 'eng': 4, 'guj': 4, 'evs': 4};
   int lectureLength = 45;
-  Set<String> activeSubjects = {'math', 'sci', 'lang', 'soc'};
+  Set<String> activeSubjects = {'math', 'eng', 'guj', 'evs'};
   String checkpoint = 'monthly';
   
   bool isManualRoster = false;
@@ -58,9 +58,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   final List<Map<String, dynamic>> _allSubjects = [
     {'id': 'math', 'name': 'Mathematics', 'c': const Color(0xFFD97706)},
-    {'id': 'sci', 'name': 'Science', 'c': const Color(0xFF059669)},
-    {'id': 'lang', 'name': 'Language', 'c': const Color(0xFF2563EB)},
-    {'id': 'soc', 'name': 'Social Studies', 'c': const Color(0xFF7C3AED)},
+    
+    
+    
   ];
 
   void _checkFeasibility() {

@@ -248,11 +248,11 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildSubjectTile('math', 'Mathematics'),
-              _buildSubjectTile('sci', 'Science'),
+              
               _buildSubjectTile('eng', 'English'),
               _buildSubjectTile('guj', 'Gujarati'),
-              _buildSubjectTile('lang', 'Language'),
-              _buildSubjectTile('soc', 'Social Studies'),
+              
+              
               _buildSubjectTile('evs', 'EVS'),
             ],
           ),

@@ -43,7 +43,7 @@ class ClassSetup {
       assessmentMode: json['assessmentMode'] ?? 'ded',
       subjectLecturesPerWeek: json['subjectLecturesPerWeek'] != null 
           ? Map<String, int>.from(json['subjectLecturesPerWeek'])
-          : {'math': 4, 'sci': 4, 'lang': 4, 'soc': 4},
+          : {'math': 4, 'eng': 4, 'guj': 4, 'evs': 4},
       lectureLength: json['lectureLength'] ?? 45,
       activeSubjects: List<String>.from(json['activeSubjects'] ?? []),
       checkpoint: json['checkpoint'] ?? 'monthly',
