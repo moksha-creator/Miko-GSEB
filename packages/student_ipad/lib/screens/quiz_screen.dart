@@ -478,53 +478,69 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     if (currentQ.type == QuestionType.mcq) {
       return LayoutBuilder(
         builder: (context, constraints) {
-          final cols = currentQ.options.length <= 2 ? 1 : 2;
-          final tileWidth = (constraints.maxWidth - (cols - 1) * 10) / cols;
-          // minimum tile height: 80px; scale up for longer text
-          final tileHeight = tileWidth * 0.55;   // aspect ~1.8:1
+          final hasImageOptions = currentQ.options.any(
+            (o) => o.value.startsWith('assets/') || o.value.startsWith('http'),
+          );
+          final cols = (currentQ.options.length <= 2 || hasImageOptions) ? 1 : 2;
+          final spacing = 12.0;
+          final tileW = (constraints.maxWidth - (cols - 1) * spacing) / cols;
+          final tileH = hasImageOptions
+              ? (tileW * 0.55).clamp(140.0, 260.0)
+              : (tileW * 0.42).clamp(100.0, 200.0);
 
           return GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: cols,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              mainAxisExtent: tileHeight.clamp(80.0, 160.0),
+              crossAxisSpacing: spacing,
+              mainAxisSpacing: spacing,
+              mainAxisExtent: tileH,
             ),
             itemCount: currentQ.options.length,
             itemBuilder: (context, index) {
               final opt = currentQ.options[index];
               final isSelected = _selectedAnswer == opt.value;
-              return InkWell(
+              final isImage = opt.value.startsWith('assets/') || opt.value.startsWith('http');
+
+              return GestureDetector(
                 onTap: () => setState(() => _selectedAnswer = opt.value),
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primaryLight : AppColors.background,
+                    color: isSelected
+                        ? AppColors.primaryLight
+                        : AppColors.surface,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: isSelected ? AppColors.primary : AppColors.primary.withOpacity(0.12),
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.primary.withOpacity(0.15),
                       width: isSelected ? 2.5 : 1.5,
                     ),
                   ),
                   child: Center(
-                    child: opt.value.startsWith('assets/')
-                        ? Image.network(
-                            opt.value,
-                            fit: BoxFit.contain,
-                            errorBuilder: (c, e, s) => const Icon(Icons.broken_image, size: 40),
-                          )
-                        : Text(
-                            opt.label,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: cols == 1 ? 16 : 14,
-                              fontWeight: FontWeight.w900,
-                              color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: isImage
+                          ? Image.network(
+                              opt.value,
+                              fit: BoxFit.contain,
+                              errorBuilder: (c, e, s) =>
+                                  const Icon(Icons.broken_image, size: 40),
+                            )
+                          : Text(
+                              opt.value,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: cols == 1 ? 20 : 16,
+                                fontWeight: FontWeight.w700,
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : AppColors.textPrimary,
+                              ),
                             ),
-                          ),
+                    ),
                   ),
                 ),
               );
@@ -532,16 +548,22 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           );
         },
       );
-    } else {
-      return InteractivePuzzleWidget(
-        question: currentQ,
-        onSubmit: (answer) {
-          setState(() {
-            _selectedAnswer = answer;
-          });
-          _submitAnswer(answer); // Auto-submit for puzzle
-        },
+    } else if (currentQ.type == QuestionType.sorting || currentQ.type == QuestionType.matching) {
+      return ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 360),
+        child: InteractivePuzzleWidget(
+          key: ValueKey(currentQ.id),
+          question: currentQ,
+          onSubmit: (answer) {
+            setState(() {
+              _selectedAnswer = answer;
+            });
+            _submitAnswer(answer); // Auto-submit for puzzle
+          },
+        ),
       );
+    } else {
+      return const SizedBox();
     }
   }
 }
@@ -564,9 +586,14 @@ class _InteractivePuzzleWidgetState extends State<InteractivePuzzleWidget> {
   @override
   void initState() {
     super.initState();
+
+    // Always initialise all fields to safe defaults first.
+    _sequenceItems = [];
+    _itemAssignments = {};
+    _items = [];
+    _buckets = [];
+
     if (widget.question.matchingPairs.isNotEmpty) {
-      _itemAssignments = {};
-      _items = [];
       final bucketSet = <String>{};
       for (int i = 0; i < widget.question.matchingPairs.length; i++) {
         final pair = widget.question.matchingPairs[i];
@@ -576,6 +603,7 @@ class _InteractivePuzzleWidgetState extends State<InteractivePuzzleWidget> {
       }
       _buckets = bucketSet.toList();
     } else {
+      // sorting
       _sequenceItems = List.from(widget.question.sortedOrder)..shuffle();
     }
   }
@@ -619,6 +647,9 @@ class _InteractivePuzzleWidgetState extends State<InteractivePuzzleWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.question.matchingPairs.isNotEmpty && _items.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
     if (widget.question.matchingPairs.isNotEmpty) {
       final isComplete = !_itemAssignments.values.any((v) => v == null);
       
@@ -742,18 +773,19 @@ class _InteractivePuzzleWidgetState extends State<InteractivePuzzleWidget> {
       );
     } else {
       // Sequence / Sorting
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-            ),
-            child: ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+      return SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+              ),
+              child: ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.all(8),
               itemCount: _sequenceItems.length,
               itemBuilder: (context, index) {
@@ -850,7 +882,8 @@ class _InteractivePuzzleWidgetState extends State<InteractivePuzzleWidget> {
             child: const Text('Submit Sequence', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ],
-      );
+      ),
+    );
     }
   }
 }
