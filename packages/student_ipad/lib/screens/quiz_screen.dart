@@ -25,20 +25,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   int _score = 0;
   int _timeLeftSeconds = 180; // 3-minute timer
   Timer? _timer;
+  bool _isPaused = false;
   DateTime _questionStartTime = DateTime.now();
   bool _isSpeaking = false;
-  bool _isRecording = false; // Microphone voice animation control
   final FlutterTts _flutterTts = FlutterTts();
-  String? _overrideAIInstruction;
-
-  // Netflix-style next kid loader state variables
-  bool _showNextStudentLoader = false;
-  int _loaderSecondsLeft = 2;
-  Timer? _loaderTimer;
 
   late List<dynamic> _answers;
   late List<bool> _correctList;
-
 
   @override
   void initState() {
@@ -85,7 +78,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
+      if (mounted && !_isPaused) {
         setState(() {
           if (_timeLeftSeconds > 0) {
             _timeLeftSeconds--;
@@ -99,801 +92,407 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   void _autoSubmitDueToTimeout() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("⏰ Assessment time limit reached for this candidate!"),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    _completeAssessmentFlow();
+    _submitAnswer(_selectedAnswer);
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _loaderTimer?.cancel();
-    _flutterTts.stop();
-    super.dispose();
-  }
+  Future<void> _proceedToNextStudent(Student student) async {
+    if (mounted) {
+      setState(() {
+        _isLoadingQuestions = true;
+      });
+    }
 
-  void _submitAnswer(dynamic answer) {
-    final currentQ = _questions[_currentQuestionIndex];
-    final isCorrect = answer != null && currentQ.validateAnswer(answer);
-    final timeSpent = DateTime.now().difference(_questionStartTime).inSeconds;
-    
-    final student = ref.read(selectedStudentProvider);
     final subject = ref.read(selectedSubjectProvider);
+    final isGuj = ref.read(isGujaratiProvider);
+    final mockService = ref.read(mockDataServiceProvider);
     
-    if (student != null) {
-      final response = QuizResponse(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        studentId: student.id,
-        studentName: student.name,
-        subject: subject,
-        chapter: 'Unit 1',
-        questionId: currentQ.id,
-        questionText: currentQ.text,
-        questionType: currentQ.type,
-        isCorrect: isCorrect,
-        submittedAnswer: answer,
-        timeSpentSeconds: timeSpent,
-        timestamp: DateTime.now(),
-      );
-      ref.read(reportingServiceProvider).saveResponse(response);
-    }
-    
-    _questionStartTime = DateTime.now();
-    
-    setState(() {
-      _answers[_currentQuestionIndex] = answer == null ? "skipped" : answer;
-      _correctList[_currentQuestionIndex] = isCorrect;
-      _score = _correctList.where((e) => e).length;
-      _selectedAnswer = null; // reset for next question
-    });
+    final level = isGuj ? "gujarati" : "grade_5_math_adaptive";
+    final questions = await mockService.loadSubjectQuiz(level);
 
-    final genericPositiveFeedback = [
-      ref.read(localeProvider) == AppLanguage.gujarati ? "અદ્ભુત પ્રયાસ! 🌟 ચાલો જોઈએ આગળ શું છે!" : "Amazing effort! 🌟 Let's see what is next!",
-      ref.read(localeProvider) == AppLanguage.gujarati ? "ખૂબ સરસ! તમે શાનદાર કામ કરી રહ્યા છો! 🚀" : "Super! You are doing fantastic! 🚀",
-      ref.read(localeProvider) == AppLanguage.gujarati ? "આગળ વધો! ચાલો આગળનું જોઈએ! ✨" : "On we go! Let's explore the next one! ✨",
-      ref.read(localeProvider) == AppLanguage.gujarati ? "સમજાઈ ગયું! ચાલો આ યાત્રાને આગળ વધારીએ! 🎉" : "Got it! Let's keep this adventure moving! 🎉",
-      ref.read(localeProvider) == AppLanguage.gujarati ? "અદભૂત કાર્ય! શાનદાર ઉર્જા! 🌈" : "Wonderful work! Sparkling energy! 🌈",
-    ];
-    final randomIndex = DateTime.now().millisecond % genericPositiveFeedback.length;
-    
-    final feedbackText = isCorrect || answer == "(Teacher Verified)"
-        ? genericPositiveFeedback[randomIndex]
-        : (answer == null || answer == "skipped" 
-            ? "No worries, let's move to the next one!" 
-            : "Good try! The correct answer was ${currentQ.correctAnswers.isNotEmpty ? currentQ.correctAnswers.first : 'something else'}.");
-    
-    setState(() {
-      _overrideAIInstruction = feedbackText;
-    });
-
-    _flutterTts.speak(_overrideAIInstruction!);
-
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (mounted) {
-        setState(() {
-          _overrideAIInstruction = null;
-        });
-        _nextQuestion();
-      }
-    });
-  }
-
-  void _nextQuestion() {
-    if (_currentQuestionIndex < _questions.length - 1) {
-      setState(() {
-        _currentQuestionIndex++;
-      });
-      _speakCurrentQuestion();
-    } else {
-      _timer?.cancel();
-      _flutterTts.stop();
-      
-      // Mark current student as completed!
-      final student = ref.read(selectedStudentProvider);
-      if (student != null) {
-        ref.read(completedStudentsProvider.notifier).markCompleted(student.id);
-      }
-      
-      _completeAssessmentFlow();
-    }
-  }
-
-  void _completeAssessmentFlow() {
-    // Find next eligible student
-    final allStus = ref.read(allStudentsProvider);
-    final completed = ref.read(completedStudentsProvider);
-    final skipped = ref.read(skippedStudentsProvider);
-
-    final nextStudent = allStus.firstWhere(
-      (s) => !completed.contains(s.id) && !skipped.contains(s.id),
-      orElse: () => Student(
-        id: 'none',
-        rollNo: 0,
-        name: '',
-        avatarColor: '#000000',
-        avatarAsset: '',
-        currentLevels: {},
-        flaggedConcepts: [],
-        recentSessions: [],
-      ),
-    );
-
-    if (nextStudent.id != 'none') {
-      setState(() {
-        _showNextStudentLoader = true;
-        _loaderSecondsLeft = 2;
-      });
-      _startLoaderTimer(nextStudent);
-    } else {
-      // All done! Show celebration dialogue
-      _showCelebrationDialog();
-    }
-  }
-
-  void _startLoaderTimer(Student nextStudent) {
-    _loaderTimer?.cancel();
-    _loaderTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {
-          if (_loaderSecondsLeft > 1) {
-            _loaderSecondsLeft--;
-          } else {
-            _loaderTimer?.cancel();
-            _proceedToNextStudent(nextStudent);
-          }
-        });
-      }
-    });
-  }
-
-  void _proceedToNextStudent(Student nextStudent) async {
-    ref.read(selectedStudentProvider.notifier).select(nextStudent);
-    setState(() {
-      _isLoadingQuestions = true;
-      _showNextStudentLoader = false;
-    });
-    
-    final questions = await ref.read(mockDataServiceProvider).loadQuestionsForSubject(nextStudent.currentLevels.keys.first);
-    
     if (mounted) {
       setState(() {
         _questions = questions;
-        _currentQuestionIndex = 0;
-        _answers = List.filled(_questions.length, null);
-        _correctList = List.filled(_questions.length, false);
-        _score = 0;
-        _timeLeftSeconds = 180; // Reset 3-minute timer
-        _overrideAIInstruction = null;
         _isLoadingQuestions = false;
+        _currentQuestionIndex = 0;
+        _selectedAnswer = null;
+        _score = 0;
+        _answers = List.filled(questions.length, null);
+        _correctList = List.filled(questions.length, false);
+        _timeLeftSeconds = 180;
+        _isPaused = false;
       });
+      _questionStartTime = DateTime.now();
       _startTimer();
       _initTts();
     }
   }
 
-  void _onAssessNowPressed(Student nextStudent) {
-    _loaderTimer?.cancel();
-    _proceedToNextStudent(nextStudent);
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _flutterTts.stop();
+    super.dispose();
   }
 
-  void _onCancelLoaderPressed() {
-    _loaderTimer?.cancel();
-    setState(() {
-      _showNextStudentLoader = false;
-    });
-    context.go('/');
+  void _submitAnswer(dynamic answer) {
+    if (_questions.isEmpty || _currentQuestionIndex >= _questions.length) return;
+
+    final isCorrect = _questions[_currentQuestionIndex].checkAnswer(answer);
+    if (isCorrect) _score++;
+    
+    _answers[_currentQuestionIndex] = answer;
+    _correctList[_currentQuestionIndex] = isCorrect;
+
+    if (_currentQuestionIndex < _questions.length - 1) {
+      setState(() {
+        _currentQuestionIndex++;
+        _selectedAnswer = null;
+      });
+      _questionStartTime = DateTime.now();
+      _speakCurrentQuestion();
+    } else {
+      _completeAssessmentFlow();
+    }
   }
-
-
 
   void _skipStudent() {
     final student = ref.read(selectedStudentProvider);
     if (student != null) {
       ref.read(skippedStudentsProvider.notifier).skip(student.id);
     }
+    _completeAssessmentFlow(isSkip: true);
+  }
+
+  void _endSession() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('End Session?'),
+        content: const Text('This will end the assessment and complete the session. Continue?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _completeAssessmentFlow(isSkip: true); // End abruptly
+            },
+            child: const Text('End Session', style: TextStyle(color: AppColors.accent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _completeAssessmentFlow({bool isSkip = false}) {
     _timer?.cancel();
     _flutterTts.stop();
-    _completeAssessmentFlow();
-  }
+    
+    final student = ref.read(selectedStudentProvider);
+    final subject = ref.read(selectedSubjectProvider);
 
-  void _previousQuestion() {
-    if (_currentQuestionIndex > 0) {
-      setState(() {
-        _currentQuestionIndex--;
-        _overrideAIInstruction = null;
-      });
-      _speakCurrentQuestion();
+    if (student != null && !isSkip) {
+      final sessionRecord = AssessmentSession(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        studentId: student.id,
+        timestamp: DateTime.now(),
+        subject: subject,
+        totalQuestions: _questions.length,
+        score: _score,
+        answers: _answers.map((a) => a?.toString() ?? 'skipped').toList(),
+        correctList: _correctList,
+      );
+      ref.read(reportingLogProvider.notifier).addSession(sessionRecord);
+      ref.read(completedStudentsProvider.notifier).markCompleted(student.id);
     }
-  }
 
-  String _formatTime(int totalSeconds) {
-    final minutes = totalSeconds ~/ 60;
-    final seconds = totalSeconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  Student? _getNextStudentName() {
-    final allStus = ref.read(allStudentsProvider);
+    final allStudents = ref.read(allStudentsProvider);
     final completed = ref.read(completedStudentsProvider);
     final skipped = ref.read(skippedStudentsProvider);
-    final current = ref.read(selectedStudentProvider);
+    final pending = allStudents.where((s) => !completed.contains(s.id) && !skipped.contains(s.id)).toList();
 
-    for (final s in allStus) {
-      if (s.id == current?.id) continue;
-      if (!completed.contains(s.id) && !skipped.contains(s.id)) {
-        return s;
-      }
+    if (pending.isNotEmpty) {
+      ref.read(selectedStudentProvider.notifier).select(pending.first);
+      context.go('/next-student-transition', extra: isSkip ? null : student?.name);
+    } else {
+      ref.read(selectedStudentProvider.notifier).select(null);
+      context.go('/session-end');
     }
-    return null;
+  }
+
+  String _formatTime(int seconds) {
+    int m = seconds ~/ 60;
+    int s = seconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoadingQuestions) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    final student = ref.watch(selectedStudentProvider) ?? Student(
-      id: 's001',
-      rollNo: 1,
-      name: 'Aarav Patel',
-      avatarColor: '#E85D55',
-        avatarAsset: '',
-      currentLevels: {'Mathematics': 2, 'Science': 2, 'Language': 1, 'Social Studies': 2},
-      flaggedConcepts: [],
-      recentSessions: [],
-    );
+    if (_isLoadingQuestions || _questions.isEmpty) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-    final currentQuestion = _questions[_currentQuestionIndex];
-    final nextStudent = _getNextStudentName();
+    final student = ref.watch(selectedStudentProvider);
+    final currentQ = _questions[_currentQuestionIndex];
+    final progress = (_currentQuestionIndex) / _questions.length;
+    final isWarning = _timeLeftSeconds <= 60;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              // Warning alert top banner
-              if (_timeLeftSeconds <= 60 && nextStudent != null)
-                Container(
-                  color: Colors.amber.shade700,
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 24),
-                  width: double.infinity,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // HEADER BAR
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    child: Text(student?.name.isNotEmpty == true ? student!.name[0].toUpperCase() : '?', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        '⚠️ 1 Minute Left! Next candidate up is Roll #${nextStudent.rollNo} ${nextStudent.name}. Please get ready!',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
+                      Text(student?.name ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      Text('Roll No: ${student?.rollNo} · ${ref.watch(selectedSubjectProvider)}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                     ],
-                  ).animate(onPlay: (c) => c.repeat()).shimmer(duration: 2.seconds),
-                ),
-              
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
-                  child: _buildAnswerArena(currentQuestion, student),
-                ),
-              ),
-            ],
-          ),
-          
-          if (_showNextStudentLoader && nextStudent != null)
-            Positioned(
-              top: 24,
-              right: 24,
-              child: _buildNetflixLoader(nextStudent),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnswerArena(QuizQuestion question, Student student) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: AppColors.primary.withOpacity(0.08), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.015), 
-            blurRadius: 12, 
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Navigation top bar
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.close, color: AppColors.textSecondary, size: 28),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                      title: const Text('Exit Assessment?'),
-                      content: const Text('Are you sure you want to quit today\'s assessment session?'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            context.go('/');
-                          },
-                          child: const Text('Exit'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    student.name,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.primary),
                   ),
-                  Text(
-                    'Question ${_currentQuestionIndex + 1} of ${_questions.length}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              // Timer Display
-              Container(
-                margin: const EdgeInsets.only(right: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _timeLeftSeconds <= 60 ? Colors.red.shade50 : Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _timeLeftSeconds <= 60 ? Colors.red.shade200 : Colors.blue.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.timer_outlined, size: 16, color: _timeLeftSeconds <= 60 ? Colors.red : Colors.blue.shade700),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${_timeLeftSeconds ~/ 60}:${(_timeLeftSeconds % 60).toString().padLeft(2, '0')}',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: _timeLeftSeconds <= 60 ? Colors.red : Colors.blue.shade700),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  question.subject,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.primary),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: (_currentQuestionIndex + 1) / _questions.length,
-              minHeight: 8,
-              backgroundColor: AppColors.background,
-              color: AppColors.primary,
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Question card
+                  const Spacer(),
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryLight.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.primary.withOpacity(0.12), width: 1.5),
+                      color: isWarning ? AppColors.accent.withOpacity(0.1) : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       children: [
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            if (_isSpeaking)
-                              Container(
-                                width: 62,
-                                height: 62,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.15),
-                                  shape: BoxShape.circle,
-                                ),
-                              ).animate(onPlay: (controller) => controller.repeat()).scale(
-                                begin: const Offset(0.9, 0.9),
-                                end: const Offset(1.25, 1.25),
-                                duration: 1.2.seconds,
-                                curve: Curves.easeInOut,
-                              ).fadeIn(duration: 400.ms).fadeOut(delay: 600.ms, duration: 400.ms),
-                              
-                            Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6),
-                                ],
-                              ),
-                              child: const Center(
-                                child: Text('🤖', style: TextStyle(fontSize: 26)),
-                              ),
-                            ).animate(target: _isSpeaking ? 1 : 0).shake(duration: 500.ms),
-                          ],
-                        ),
-                        const SizedBox(width: 16),
-                        
-                        Expanded(
-                          child: Text(
-                            _overrideAIInstruction ?? question.text,
-                            style: const TextStyle(
-                              fontSize: 18, 
-                              fontWeight: FontWeight.w900, 
-                              color: AppColors.textPrimary,
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        
-                        // Speaker button
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: _speakCurrentQuestion,
-                            borderRadius: BorderRadius.circular(24),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3)),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.volume_up_rounded,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                          ),
+                        Icon(Icons.timer, color: isWarning ? AppColors.accent : AppColors.textPrimary, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          _formatTime(_timeLeftSeconds),
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isWarning ? AppColors.accent : AppColors.textPrimary),
                         ),
                       ],
                     ),
                   ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // MCQ Cards Choice List & Puzzle Widget
-                  if (question.options.isNotEmpty)
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: question.options.length <= 2 ? 2 : 2,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        mainAxisExtent: 80,
-                      ),
-                      itemCount: question.options.length,
-                      itemBuilder: (context, index) {
-                        final opt = question.options[index];
-                        return InkWell(
-                          onTap: () => _submitAnswer(opt.value),
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: AppColors.background,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: AppColors.primary.withOpacity(0.12), width: 1.5),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                const SizedBox(height: 8),
-                                Expanded(
-                                  child: opt.value.startsWith('assets/') 
-                                    ? Image.network(opt.value, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, size: 40))
-                                    : Center(
-                                        child: Text(
-                                          opt.value, 
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                            fontSize: 14, 
-                                            fontWeight: FontWeight.w900, 
-                                            color: AppColors.textPrimary,
-                                          )
-                                        ),
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ).animate().fadeIn(delay: Duration(milliseconds: 50 * index)).scale(),
-                        );
-                      },
-                    )
-                  else if (question.type == QuestionType.sorting || question.type == QuestionType.matching)
-                    InteractivePuzzleWidget(
-                      key: ValueKey(question.id),
-                      question: question,
-                      onSubmit: _submitAnswer,
-                    ),
-                ]
-              )
-            )
-          ),
-          
-          const SizedBox(height: 12),
-          
-          // Interactive Microphone Panel + Action buttons (Skip / Back)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Back / Skip left area
-              Row(
-                children: [
-                  if (_currentQuestionIndex > 0) ...[
-                    OutlinedButton.icon(
-                      onPressed: _previousQuestion,
-                      icon: const Icon(Icons.arrow_back, size: 18),
-                      label: const Text('Back'),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  ElevatedButton.icon(
+                  const Spacer(),
+                  TextButton.icon(
                     onPressed: () {
-                      _submitAnswer(null); // submit null to skip question
+                      setState(() {
+                        _isPaused = !_isPaused;
+                      });
                     },
-                    icon: const Icon(Icons.redo_rounded, size: 16, color: Colors.white),
-                    label: const Text('Skip Question', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey.shade600,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
+                    icon: Icon(_isPaused ? Icons.play_arrow : Icons.pause),
+                    label: Text(_isPaused ? 'Resume' : 'Pause'),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.textPrimary),
+                  ),
+                  const SizedBox(width: 16),
+                  TextButton.icon(
+                    onPressed: _endSession,
+                    icon: const Icon(Icons.stop),
+                    label: const Text('End Session'),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.accent),
                   ),
                 ],
               ),
-              
+            ),
+            
+            // QUESTION AREA
+            Expanded(
+              child: Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      // Progress
+                      Row(
+                        children: [
+                          Text('Q${_currentQuestionIndex + 1} of ${_questions.length}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: progress,
+                                backgroundColor: Colors.grey.shade200,
+                                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                minHeight: 8,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      // Question Card
+                      Container(
+                        padding: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))],
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                currentQ.text,
+                                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, height: 1.4),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            InkWell(
+                              onTap: _speakCurrentQuestion,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: _isSpeaking ? AppColors.primary.withOpacity(0.1) : Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.replay, color: _isSpeaking ? AppColors.primary : AppColors.textSecondary, size: 32),
+                                    const SizedBox(height: 4),
+                                    Text('Repeat', style: TextStyle(color: _isSpeaking ? AppColors.primary : AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      if (isWarning)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text('1 minute remaining', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
 
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showCelebrationDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(36)),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
-        backgroundColor: Colors.white,
-        child: Container(
-          width: 500,
-          padding: const EdgeInsets.all(36),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('🎉 SESSION COMPLETE! 🎉', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.success, letterSpacing: 1.0)),
-              const SizedBox(height: 16),
-              const Text(
-                'Class evaluations completed successfully!',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'All present candidates have completed today\'s questions. Metrics have been updated and synced to the school dashboard!',
-                style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.5),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 28),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Text('🏆', style: TextStyle(fontSize: 48)),
-                  SizedBox(width: 20),
-                  Text('🌟', style: TextStyle(fontSize: 48)),
-                  SizedBox(width: 20),
-                  Text('🚀', style: TextStyle(fontSize: 48)),
-                ],
-              ),
-              const SizedBox(height: 36),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  context.go('/');
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18),
+                      const SizedBox(height: 32),
+                      
+                      // Answer Arena
+                      Expanded(
+                        child: _buildAnswerArena(currentQ),
+                      ),
+                      
+                      // Bottom Row Buttons
+                      Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            TextButton(
+                              onPressed: _skipStudent,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                              ),
+                              child: const Text('Skip Student', style: TextStyle(fontSize: 16, color: AppColors.textSecondary)),
+                            ),
+                            ElevatedButton(
+                              onPressed: (currentQ.type == 'mcq' && _selectedAnswer == null) ? null : () => _submitAnswer(_selectedAnswer),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.success,
+                                disabledBackgroundColor: Colors.grey.shade300,
+                                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 20),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              child: const Text('Done', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: const Text('Back to Home Board 🎒', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildNetflixLoader(Student nextStudent) {
-    return Container(
-      width: 320,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B), // Sleek Dark slate
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.12), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.play_circle_fill, color: Colors.red, size: 20),
-              const SizedBox(width: 8),
-              const Text(
-                'UP NEXT',
-                style: TextStyle(
-                  color: Colors.red, 
-                  fontWeight: FontWeight.w900, 
-                  fontSize: 12,
-                  letterSpacing: 1.5,
+  Widget _buildAnswerArena(QuizQuestion currentQ) {
+    if (currentQ.type == 'mcq') {
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 2.5,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+        ),
+        itemCount: currentQ.options?.length ?? 0,
+        itemBuilder: (context, index) {
+          final option = currentQ.options![index];
+          final isSelected = _selectedAnswer == option;
+          final isImage = option.startsWith('assets/') || option.startsWith('[image:') || option.contains(RegExp(r'[☀-⛿✀-➿ἰ0-ὟFὠ0-ὤFὨ0-ὯFᾐ0-ᾟF]'));
+          
+          return InkWell(
+            onTap: () {
+              setState(() {
+                _selectedAnswer = option;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected ? AppColors.primary : Colors.grey.shade300,
+                  width: isSelected ? 3 : 1,
                 ),
+                boxShadow: isSelected ? [] : [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
               ),
-              const Spacer(),
-              Text(
-                'Starting in ${_loaderSecondsLeft}s',
-                style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              // Circular progress wrapper around Avatar
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    width: 64,
-                    height: 64,
-                    child: CircularProgressIndicator(
-                      value: _loaderSecondsLeft / 2,
-                      strokeWidth: 4,
-                      backgroundColor: Colors.white.withOpacity(0.1),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
-                    ),
-                  ),
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundImage: nextStudent.avatarAsset.isNotEmpty ? AssetImage(nextStudent.avatarAsset) : null,
-                    backgroundColor: Color(int.tryParse(nextStudent.avatarColor.replaceFirst('#', '0xFF')) ?? 0xFF3B82F6),
-                    child: nextStudent.avatarAsset.isEmpty ? Text(nextStudent.initials, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)) : null,
-                  ),
-                ],
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      nextStudent.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18,
+              child: Center(
+                child: isImage 
+                  ? (option.startsWith('assets/') ? Image.network(option, height: 60, errorBuilder: (c,e,s) => const Icon(Icons.broken_image)) : Text(option, style: const TextStyle(fontSize: 48)))
+                  : Text(
+                      option,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        color: isSelected ? AppColors.primary : AppColors.textPrimary,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Roll No. ${nextStudent.rollNo}',
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
               ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _onCancelLoaderPressed,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    side: BorderSide(color: Colors.white.withOpacity(0.2)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => _onAssessNowPressed(nextStudent),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    elevation: 0,
-                  ),
-                  child: const Text('Assess Now', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ).animate().slideX(begin: 0.1, end: 0, duration: 250.ms).fadeIn(),
-    );
+            ),
+          );
+        },
+      );
+    } else {
+      return InteractivePuzzleWidget(
+        question: currentQ,
+        onSubmit: (answer) {
+          setState(() {
+            _selectedAnswer = answer;
+          });
+          _submitAnswer(answer); // Auto-submit for puzzle
+        },
+      );
+    }
   }
-
-  }
-
-Color _colorFromHex(String hexColor) {
-  hexColor = hexColor.replaceAll('#', '');
-  if (hexColor.length == 6) {
-    hexColor = 'FF$hexColor';
-  }
-  return Color(int.parse(hexColor, radix: 16));
 }
-
 class InteractivePuzzleWidget extends StatefulWidget {
   final QuizQuestion question;
   final ValueChanged<dynamic> onSubmit;

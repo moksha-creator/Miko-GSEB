@@ -5,6 +5,7 @@ import 'screens/student_profiles_screen.dart';
 import 'screens/quiz_screen.dart';
 import 'screens/transition_screens.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/session_end_screen.dart';
 import 'screens/schedule_screen.dart';
 import 'screens/reports/reporting_screen.dart';
 import 'providers/planner_state_provider.dart';
@@ -49,6 +50,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/next-student-transition',
         builder: (context, state) => const NextStudentTransitionScreen(),
+      ),
+      GoRoute(
+        path: '/session-end',
+        builder: (context, state) => const SessionEndScreen(),
       ),
       GoRoute(
         path: '/reports',
