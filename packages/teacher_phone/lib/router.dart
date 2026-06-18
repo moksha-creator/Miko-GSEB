@@ -5,7 +5,7 @@ import 'screens/class_tab.dart';
 import 'screens/reports_tab.dart';
 import 'screens/school_tab.dart';
 import 'screens/settings_tab.dart';
-import 'screens/assessment_session_screen.dart';
+
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -31,10 +31,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/settings',
         builder: (context, state) => const SettingsTab(),
       ),
-      GoRoute(
-        path: '/assessment',
-        builder: (context, state) => const AssessmentSessionScreen(),
-      ),
+
     ],
   );
 });

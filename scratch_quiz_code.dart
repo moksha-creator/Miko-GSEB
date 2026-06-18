@@ -8,7 +8,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_core/shared_core.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'student_profiles_screen.dart';
-import 'quiz/question_templates.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({Key? key}) : super(key: key);
@@ -108,7 +107,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final mockService = ref.read(mockDataServiceProvider);
     
     final level = isGuj ? "gujarati" : "grade_5_math_adaptive";
-    final questions = await mockService.loadQuestionsForSubject(subject);
+    final questions = await mockService.loadSubjectQuiz(level);
 
     if (mounted) {
       setState(() {
@@ -138,33 +137,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   void _submitAnswer(dynamic answer) {
     if (_questions.isEmpty || _currentQuestionIndex >= _questions.length) return;
 
-    final currentQ = _questions[_currentQuestionIndex];
-    final isCorrect = answer != null && currentQ.validateAnswer(answer);
+    final isCorrect = _questions[_currentQuestionIndex].checkAnswer(answer);
     if (isCorrect) _score++;
     
     _answers[_currentQuestionIndex] = answer;
     _correctList[_currentQuestionIndex] = isCorrect;
-    
-    final student = ref.read(selectedStudentProvider);
-    final subject = ref.read(selectedSubjectProvider);
-    if (student != null) {
-      final timeSpent = DateTime.now().difference(_questionStartTime).inSeconds;
-      final response = QuizResponse(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        studentId: student.id,
-        studentName: student.name,
-        subject: subject,
-        chapter: 'Unit 1',
-        questionId: currentQ.id,
-        questionText: currentQ.text,
-        questionType: currentQ.type,
-        isCorrect: isCorrect,
-        submittedAnswer: answer?.toString() ?? 'skipped',
-        timeSpentSeconds: timeSpent,
-        timestamp: DateTime.now(),
-      );
-      ref.read(reportingServiceProvider).saveResponse(response);
-    }
 
     if (_currentQuestionIndex < _questions.length - 1) {
       setState(() {
@@ -186,32 +163,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     _completeAssessmentFlow(isSkip: true);
   }
 
-  void _confirmExitAssessment() {
+  void _endSession() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Exit assessment?'),
-        content: const Text(
-            "This ends the current student's session. "
-            "Their answers so far are saved."),
+      builder: (ctx) => AlertDialog(
+        title: const Text('End Session?'),
+        content: const Text('This will end the assessment and complete the session. Continue?'),
         actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
-              _timer?.cancel();
-              _flutterTts.stop();
-              context.go('/');
+              Navigator.pop(ctx);
+              _completeAssessmentFlow(isSkip: true); // End abruptly
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Exit'),
+            child: const Text('End Session', style: TextStyle(color: AppColors.accent)),
           ),
         ],
       ),
@@ -223,8 +188,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     _flutterTts.stop();
     
     final student = ref.read(selectedStudentProvider);
+    final subject = ref.read(selectedSubjectProvider);
 
     if (student != null && !isSkip) {
+      final sessionRecord = AssessmentSession(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        studentId: student.id,
+        timestamp: DateTime.now(),
+        subject: subject,
+        totalQuestions: _questions.length,
+        score: _score,
+        answers: _answers.map((a) => a?.toString() ?? 'skipped').toList(),
+        correctList: _correctList,
+      );
+      ref.read(reportingLogProvider.notifier).addSession(sessionRecord);
       ref.read(completedStudentsProvider.notifier).markCompleted(student.id);
     }
 
@@ -318,17 +295,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                     style: TextButton.styleFrom(foregroundColor: AppColors.textPrimary),
                   ),
                   const SizedBox(width: 16),
-                  const SizedBox(width: 12),
                   TextButton.icon(
-                    onPressed: _confirmExitAssessment,
-                    icon: const Icon(Icons.logout_rounded, size: 18),
-                    label: const Text(
-                      'Exit assessment',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
-                    ),
+                    onPressed: _endSession,
+                    icon: const Icon(Icons.stop),
+                    label: const Text('End Session'),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.accent),
                   ),
                 ],
               ),
@@ -364,11 +335,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                       
                       // Question Card
                       Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5))],
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))],
                         ),
                         child: Row(
                           children: [
@@ -414,7 +385,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                           ),
                         ),
 
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 32),
                       
                       // Answer Arena
                       Expanded(
@@ -427,40 +398,23 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Skip question — left
-                            ElevatedButton.icon(
-                              onPressed: () => _submitAnswer(null),
-                              icon: const Icon(Icons.redo_rounded, size: 16, color: Colors.white),
-                              label: const Text(
-                                'Skip Question',
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            TextButton(
+                              onPressed: _skipStudent,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                               ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.grey.shade600,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              ),
+                              child: const Text('Skip Student', style: TextStyle(fontSize: 16, color: AppColors.textSecondary)),
                             ),
-
-                            // Done — right (only for MCQ / options-based questions)
-                            if (currentQ.options.isNotEmpty)
-                              ElevatedButton.icon(
-                                onPressed: _selectedAnswer != null
-                                    ? () => _submitAnswer(_selectedAnswer)
-                                    : null,
-                                icon: const Icon(Icons.check_rounded, color: Colors.white),
-                                label: const Text(
-                                  'Done',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.success,
-                                  disabledBackgroundColor: Colors.grey.shade300,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                                  minimumSize: const Size(160, 52),
-                                ),
+                            ElevatedButton(
+                              onPressed: (currentQ.type == 'mcq' && _selectedAnswer == null) ? null : () => _submitAnswer(_selectedAnswer),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.success,
+                                disabledBackgroundColor: Colors.grey.shade300,
+                                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 20),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               ),
+                              child: const Text('Done', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                            ),
                           ],
                         ),
                       ),
@@ -476,34 +430,66 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Widget _buildAnswerArena(QuizQuestion currentQ) {
-    switch (currentQ.visualAid) {
-      case 'text_only':
-        return ChoiceTemplate(question: currentQ, isImage: false, onAnswer: (ans) => setState(() => _selectedAnswer = ans));
-      case 'image_choice':
-        return ChoiceTemplate(question: currentQ, isImage: true, onAnswer: (ans) => setState(() => _selectedAnswer = ans));
-      case 'two_bucket_sort':
-        return SortTemplate(question: currentQ, onAnswer: (ans) {
-          setState(() => _selectedAnswer = ans);
-          _submitAnswer(ans); // Auto-submit for puzzle
-        });
-      case 'match_pairs':
-        return MatchPairsTemplate(question: currentQ, onAnswer: (ans) {
-          setState(() => _selectedAnswer = ans);
-          _submitAnswer(ans); // Auto-submit for puzzle
-        });
-      case 'sequence':
-        return SequenceTemplate(question: currentQ, onAnswer: (ans) {
-          setState(() => _selectedAnswer = ans);
-          // Wait to submit until Done is pressed for sequences? The original SequenceTemplate auto-submits.
-          // In original quiz_screen sorting auto-submits, but here sequences can be reordered indefinitely.
-          // Wait, InteractivePuzzleWidget automatically called onSubmit for sequences when the sorting is correct or "done"?
-          // No, let's rely on the Done button for sequences.
-        });
-      case 'voice_response':
-        return VoiceResponseTemplate(question: currentQ, onAnswer: (ans) => setState(() => _selectedAnswer = ans));
-      default:
-        // Default to choice
-        return ChoiceTemplate(question: currentQ, isImage: false, onAnswer: (ans) => setState(() => _selectedAnswer = ans));
+    if (currentQ.type == 'mcq') {
+      return GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 2.5,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+        ),
+        itemCount: currentQ.options?.length ?? 0,
+        itemBuilder: (context, index) {
+          final option = currentQ.options![index];
+          final isSelected = _selectedAnswer == option;
+          final isImage = option.startsWith('assets/') || option.startsWith('[image:') || option.contains(RegExp(r'[☀-⛿✀-➿ἰ0-ὟFὠ0-ὤFὨ0-ὯFᾐ0-ᾟF]'));
+          
+          return InkWell(
+            onTap: () {
+              setState(() {
+                _selectedAnswer = option;
+              });
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isSelected ? AppColors.primary : Colors.grey.shade300,
+                  width: isSelected ? 3 : 1,
+                ),
+                boxShadow: isSelected ? [] : [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
+              ),
+              child: Center(
+                child: isImage 
+                  ? (option.startsWith('assets/') ? Image.network(option, height: 60, errorBuilder: (c,e,s) => const Icon(Icons.broken_image)) : Text(option, style: const TextStyle(fontSize: 48)))
+                  : Text(
+                      option,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      return InteractivePuzzleWidget(
+        question: currentQ,
+        onSubmit: (answer) {
+          setState(() {
+            _selectedAnswer = answer;
+          });
+          _submitAnswer(answer); // Auto-submit for puzzle
+        },
+      );
     }
   }
 }

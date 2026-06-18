@@ -5,7 +5,7 @@ This monorepo contains the demo applications for the Miko AI classroom assessmen
 ## Repository Structure
 
 - `packages/shared_core/`: Contains the mock JSON data, shared models, themes, and services.
-- `packages/student_ipad/`: The student-facing iPad assessment experience.
+- `packages/student_ipad/`: The student-facing interactive board/iPad assessment experience.
 - `packages/teacher_phone/`: The teacher's control panel and dashboard.
 
 ## Running the Apps
