@@ -273,6 +273,24 @@ class _SortTemplateState extends State<SortTemplate> {
   }
 
   Widget _buildDraggableItem(String label, bool isDragging, {bool small = false}) {
+    bool isAsset = label.startsWith('assets/');
+    bool isNetwork = label.startsWith('http');
+    bool isImage = isAsset || isNetwork;
+
+    Widget content;
+    if (isImage) {
+      content = isAsset
+          ? Image.asset(label, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
+          : Image.network(label, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.broken_image));
+      content = SizedBox(width: small ? 30 : 60, height: small ? 30 : 60, child: content);
+    } else {
+      content = Text(label,
+          style: TextStyle(
+              fontSize: small ? 10 : 16,
+              fontWeight: FontWeight.bold,
+              color: isDragging ? Colors.white : AppColors.textPrimary));
+    }
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: small ? 8 : 16, vertical: small ? 4 : 8),
       decoration: BoxDecoration(
@@ -281,11 +299,7 @@ class _SortTemplateState extends State<SortTemplate> {
         border: Border.all(color: AppColors.primary.withOpacity(0.5)),
         boxShadow: isDragging ? [BoxShadow(color: AppColors.primary.withOpacity(0.5), blurRadius: 10)] : [],
       ),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: small ? 10 : 16,
-              fontWeight: FontWeight.bold,
-              color: isDragging ? Colors.white : AppColors.textPrimary)),
+      child: content,
     );
   }
 }
@@ -355,6 +369,24 @@ class _MatchPairsTemplateState extends State<MatchPairsTemplate> {
     final isSelected = _selectedMatchLeft == text;
     final isPaired = _pairedItems.containsKey(text);
 
+    bool isAsset = text.startsWith('assets/');
+    bool isNetwork = text.startsWith('http');
+    bool isImage = isAsset || isNetwork;
+
+    Widget content;
+    if (isImage) {
+      content = isAsset
+          ? Image.asset(text, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
+          : Image.network(text, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.broken_image));
+      content = SizedBox(width: 40, height: 40, child: content);
+    } else {
+      content = Text(text,
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isPaired ? AppColors.success : AppColors.textPrimary));
+    }
+
     return GestureDetector(
       onTap: () {
         if (!isPaired) setState(() => _selectedMatchLeft = text);
@@ -379,12 +411,7 @@ class _MatchPairsTemplateState extends State<MatchPairsTemplate> {
                       : AppColors.primary.withOpacity(0.2),
               width: isSelected ? 4 : 2),
         ),
-        child: Center(
-            child: Text(text,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: isPaired ? AppColors.success : AppColors.textPrimary))),
+        child: Center(child: content),
       ),
     );
   }
@@ -392,6 +419,24 @@ class _MatchPairsTemplateState extends State<MatchPairsTemplate> {
   Widget _buildMatchRightItem(String text) {
     final pairedLeft = _pairedItems.entries.where((e) => e.value == text).map((e) => e.key).firstOrNull;
     final isPaired = pairedLeft != null;
+
+    bool isAsset = text.startsWith('assets/');
+    bool isNetwork = text.startsWith('http');
+    bool isImage = isAsset || isNetwork;
+
+    Widget content;
+    if (isImage) {
+      content = isAsset
+          ? Image.asset(text, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
+          : Image.network(text, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.broken_image));
+      content = SizedBox(width: 40, height: 40, child: content);
+    } else {
+      content = Text(text,
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isPaired ? AppColors.success : AppColors.textPrimary));
+    }
 
     return GestureDetector(
       onTap: () {
@@ -419,13 +464,9 @@ class _MatchPairsTemplateState extends State<MatchPairsTemplate> {
         child: Center(
           child: Column(
             children: [
-              Text(text,
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isPaired ? AppColors.success : AppColors.textPrimary)),
+              content,
               if (isPaired)
-                Text('Matched with $pairedLeft',
+                Text('Matched',
                     style: const TextStyle(fontSize: 8, color: AppColors.success), textAlign: TextAlign.center),
             ],
           ),
