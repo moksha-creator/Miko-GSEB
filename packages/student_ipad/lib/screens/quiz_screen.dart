@@ -185,20 +185,32 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     _completeAssessmentFlow(isSkip: true);
   }
 
-  void _endSession() {
+  void _confirmExitAssessment() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('End Session?'),
-        content: const Text('This will end the assessment and complete the session. Continue?'),
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Exit assessment?'),
+        content: const Text(
+            'This ends the current student\\'s session. '
+            'Their answers so far are saved.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
             onPressed: () {
-              Navigator.pop(ctx);
-              _completeAssessmentFlow(isSkip: true); // End abruptly
+              Navigator.pop(context);
+              _timer?.cancel();
+              _flutterTts.stop();
+              context.go('/');
             },
-            child: const Text('End Session', style: TextStyle(color: AppColors.accent)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Exit'),
           ),
         ],
       ),
@@ -305,11 +317,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                     style: TextButton.styleFrom(foregroundColor: AppColors.textPrimary),
                   ),
                   const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   TextButton.icon(
-                    onPressed: _endSession,
-                    icon: const Icon(Icons.stop),
-                    label: const Text('End Session'),
-                    style: TextButton.styleFrom(foregroundColor: AppColors.accent),
+                    onPressed: _confirmExitAssessment,
+                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    label: const Text(
+                      'Exit assessment',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -408,23 +426,40 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            TextButton(
-                              onPressed: _skipStudent,
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            // Skip question — left
+                            ElevatedButton.icon(
+                              onPressed: () => _submitAnswer(null),
+                              icon: const Icon(Icons.redo_rounded, size: 16, color: Colors.white),
+                              label: const Text(
+                                'Skip Question',
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                               ),
-                              child: const Text('Skip Student', style: TextStyle(fontSize: 16, color: AppColors.textSecondary)),
-                            ),
-                            ElevatedButton(
-                              onPressed: (currentQ.type == 'mcq' && _selectedAnswer == null) ? null : () => _submitAnswer(_selectedAnswer),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.success,
-                                disabledBackgroundColor: Colors.grey.shade300,
-                                padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 20),
+                                backgroundColor: Colors.grey.shade600,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               ),
-                              child: const Text('Done', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
                             ),
+
+                            // Done — right (only for MCQ / options-based questions)
+                            if (currentQ.options.isNotEmpty)
+                              ElevatedButton.icon(
+                                onPressed: _selectedAnswer != null
+                                    ? () => _submitAnswer(_selectedAnswer)
+                                    : null,
+                                icon: const Icon(Icons.check_rounded, color: Colors.white),
+                                label: const Text(
+                                  'Done',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.success,
+                                  disabledBackgroundColor: Colors.grey.shade300,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                                  minimumSize: const Size(160, 52),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -441,52 +476,59 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   Widget _buildAnswerArena(QuizQuestion currentQ) {
     if (currentQ.type == QuestionType.mcq) {
-      return GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 2.5,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-        ),
-        itemCount: currentQ.options.length,
-        itemBuilder: (context, index) {
-          final option = currentQ.options[index];
-          final isSelected = _selectedAnswer == option.value;
-          final isImage = option.value.startsWith('assets/') || option.value.startsWith('[image:') || option.value.contains(RegExp(r'[☀-⛿✀-➿ἰ0-ὟFὠ0-ὤFὨ0-ὯFᾐ0-ᾟF]'));
-          
-          return InkWell(
-            onTap: () {
-              setState(() {
-                _selectedAnswer = option.value;
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isSelected ? AppColors.primary : Colors.grey.shade300,
-                  width: isSelected ? 3 : 1,
-                ),
-                boxShadow: isSelected ? [] : [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
-              ),
-              child: Center(
-                child: isImage 
-                  ? (option.value.startsWith('assets/') ? Image.network(option.value, height: 60, errorBuilder: (c,e,s) => const Icon(Icons.broken_image)) : Text(option.label, style: const TextStyle(fontSize: 48)))
-                  : Text(
-                      option.label,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-              ),
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final cols = currentQ.options.length <= 2 ? 1 : 2;
+          final tileWidth = (constraints.maxWidth - (cols - 1) * 10) / cols;
+          // minimum tile height: 80px; scale up for longer text
+          final tileHeight = tileWidth * 0.55;   // aspect ~1.8:1
+
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: cols,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              mainAxisExtent: tileHeight.clamp(80.0, 160.0),
             ),
+            itemCount: currentQ.options.length,
+            itemBuilder: (context, index) {
+              final opt = currentQ.options[index];
+              final isSelected = _selectedAnswer == opt.value;
+              return InkWell(
+                onTap: () => setState(() => _selectedAnswer = opt.value),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primaryLight : AppColors.background,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : AppColors.primary.withOpacity(0.12),
+                      width: isSelected ? 2.5 : 1.5,
+                    ),
+                  ),
+                  child: Center(
+                    child: opt.value.startsWith('assets/')
+                        ? Image.network(
+                            opt.value,
+                            fit: BoxFit.contain,
+                            errorBuilder: (c, e, s) => const Icon(Icons.broken_image, size: 40),
+                          )
+                        : Text(
+                            opt.label,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: cols == 1 ? 16 : 14,
+                              fontWeight: FontWeight.w900,
+                              color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                            ),
+                          ),
+                  ),
+                ),
+              );
+            },
           );
         },
       );
