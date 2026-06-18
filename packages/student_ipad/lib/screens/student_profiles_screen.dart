@@ -76,23 +76,8 @@ class IsGujaratiNotifier extends Notifier<bool> {
 final isGujaratiProvider = NotifierProvider<IsGujaratiNotifier, bool>(IsGujaratiNotifier.new);
 
 // Translations
-String _t(String en, bool isGuj) {
-  if (!isGuj) return en;
-  final map = {
-    'Good Morning, Teacher!': 'શુભ સવાર, શિક્ષક!',
-    "Here's your assessment dashboard for today.": 'અહીં તમારું આજના મૂલ્યાંકન ડેશબોર્ડ છે.',
-    'Now Assessing': 'હવે મૂલ્યાંકન થઈ રહ્યું છે',
-    'Start Assessment': 'મૂલ્યાંકન શરૂ કરો',
-    "Today's Session": 'આજનું સત્ર',
-    'Skipped Today': 'આજે છોડેલા',
-    "Don't worry!": 'ચિંતા કરશો નહીં!',
-    'They can try again tomorrow': 'તેઓ આવતીકાલે ફરી પ્રયાસ કરી શકે છે',
-    'No skipped children!': 'કોઈ બાળક છોડવામાં આવ્યું નથી!',
-    'All Active Students Evaluated!': 'બધા સક્રિય વિદ્યાર્થીઓનું મૂલ્યાંકન પૂર્ણ થયું!',
-    'Skip': 'છોડો',
-    'Roll No.': 'રોલ નં.',
-  };
-  return map[en] ?? en;
+String _t(String key, bool isGuj) {
+  return AppStrings.t(key, isGuj ? AppLanguage.gujarati : AppLanguage.english);
 }
 
 String _getAvatarAsset(String id) {
@@ -316,7 +301,7 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                 children: [
                   const Icon(Icons.school, color: AppColors.primary, size: 32),
                   const SizedBox(width: 12),
-                  const Text('Grade 5 B', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                  Text(_t('grade_5_b', isGuj), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
                   const Spacer(),
                   InkWell(
                     onTap: _showSubjectDialog,
@@ -329,7 +314,7 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                       ),
                       child: Row(
                         children: [
-                          Text(_t(subject.toUpperCase(), isGuj), style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                          Text(_t(subject, isGuj).toUpperCase(), style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                           const SizedBox(width: 8),
                           const Icon(Icons.arrow_drop_down, color: AppColors.primary),
                         ],
@@ -406,7 +391,7 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                             : Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Text('UP NEXT', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 2)),
+                                  Text(_t('up_next', isGuj).toUpperCase(), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 2)),
                                   const SizedBox(height: 32),
                                   Container(
                                     width: 120, height: 120,
@@ -421,9 +406,9 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 24),
-                                  Text(activeStudent?.name ?? '', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
+                                  Text(_t(activeStudent?.name ?? '', isGuj), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
                                   const SizedBox(height: 8),
-                                  Text('Roll No: ${activeStudent?.rollNo} · $subject', style: const TextStyle(fontSize: 18, color: AppColors.textSecondary)),
+                                  Text('${_t('roll_no', isGuj)}: ${activeStudent?.rollNo} · ${_t(subject, isGuj)}', style: const TextStyle(fontSize: 18, color: AppColors.textSecondary)),
                                   const SizedBox(height: 48),
                                   Row(
                                     children: [
@@ -435,7 +420,7 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                                             }
                                           },
                                           icon: const Icon(Icons.person_off),
-                                          label: const Text('Mark Absent', style: TextStyle(fontSize: 16)),
+                                          label: Text(_t('mark_absent', isGuj), style: const TextStyle(fontSize: 16)),
                                           style: TextButton.styleFrom(
                                             foregroundColor: AppColors.accent,
                                             padding: const EdgeInsets.symmetric(vertical: 24),
@@ -449,7 +434,7 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                                         child: ElevatedButton.icon(
                                           onPressed: () => context.go('/be-ready'),
                                           icon: const Icon(Icons.play_arrow_rounded, size: 28),
-                                          label: const Text('Start Session', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                          label: Text(_t('start_session', isGuj), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: AppColors.success,
                                             foregroundColor: Colors.white,
@@ -485,9 +470,9 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                                   children: [
                                     Row(
                                       children: [
-                                        const Text('Today\'s Roster', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                                        Text(_t('todays_roster', isGuj), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                                         const Spacer(),
-                                        Text('${completed.length} done · ${skipped.length} absent', style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                                        Text('${completed.length} ${_t('done', isGuj).toLowerCase()} · ${skipped.length} ${_t('absent', isGuj).toLowerCase()}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                                       ],
                                     ),
                                     const SizedBox(height: 16),
@@ -538,8 +523,8 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
                                           foregroundColor: isNext ? Colors.white : Colors.grey.shade600,
                                           child: Text(st.name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold)),
                                         ),
-                                        title: Text(st.name, style: TextStyle(fontWeight: isNext ? FontWeight.bold : FontWeight.normal, color: textColor)),
-                                        subtitle: Text('Roll No: ${st.rollNo}', style: TextStyle(color: textColor.withOpacity(0.7))),
+                                        title: Text(_t(st.name, isGuj), style: TextStyle(fontWeight: isNext ? FontWeight.bold : FontWeight.normal, color: textColor)),
+                                        subtitle: Text('${_t('roll_no', isGuj)}: ${st.rollNo}', style: TextStyle(color: textColor.withOpacity(0.7))),
                                         trailing: isDone 
                                           ? const Icon(Icons.check_circle, color: AppColors.success)
                                           : (isSkipped ? const Icon(Icons.remove_circle, color: AppColors.accent) : null),
@@ -563,10 +548,10 @@ class _StudentProfilesScreenState extends ConsumerState<StudentProfilesScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               color: Colors.white,
-              child: const Text(
-                'Call the child to the board · tap Start session',
+              child: Text(
+                _t('call_child_to_board', isGuj),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
               ),
             ),
           ],

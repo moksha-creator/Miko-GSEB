@@ -14,6 +14,19 @@ class AppStrings {
     
 
     // Student App additions
+    'grade_5_b': {AppLanguage.english: 'Grade 5 B', AppLanguage.gujarati: 'ધોરણ 5 બ'},
+    'mark_absent': {AppLanguage.english: 'Mark Absent', AppLanguage.gujarati: 'ગેરહાજર ચિહ્નિત કરો'},
+    'session_complete': {AppLanguage.english: 'Session Complete', AppLanguage.gujarati: 'સત્ર પૂર્ણ'},
+    'all_students_processed': {AppLanguage.english: 'All students have been processed.', AppLanguage.gujarati: 'બધા વિદ્યાર્થીઓની પ્રક્રિયા થઈ ગઈ છે.'},
+    'call_child_to_board': {AppLanguage.english: 'Call the child to the board · tap Start session', AppLanguage.gujarati: 'બાળકને બોર્ડ પર બોલાવો · સત્ર શરૂ કરવા માટે ટેપ કરો'},
+    'math': {AppLanguage.english: 'math', AppLanguage.gujarati: 'ગણિત'},
+    'sci': {AppLanguage.english: 'sci', AppLanguage.gujarati: 'વિજ્ઞાન'},
+    'eng': {AppLanguage.english: 'eng', AppLanguage.gujarati: 'અંગ્રેજી'},
+    'guj': {AppLanguage.english: 'guj', AppLanguage.gujarati: 'ગુજરાતી'},
+    'lang': {AppLanguage.english: 'lang', AppLanguage.gujarati: 'ભાષા'},
+    'soc': {AppLanguage.english: 'soc', AppLanguage.gujarati: 'સામાજિક વિજ્ઞાન'},
+    'evs': {AppLanguage.english: 'evs', AppLanguage.gujarati: 'પર્યાવરણ અભ્યાસ'},
+
     'good_morning_teacher': {AppLanguage.english: 'Good Morning, Teacher!', AppLanguage.gujarati: 'શુભ સવાર, શિક્ષક!'},
     'assessment_dashboard_today': {AppLanguage.english: "Here's your assessment dashboard for today.", AppLanguage.gujarati: 'અહીં તમારું આજના મૂલ્યાંકન ડેશબોર્ડ છે.'},
     'now_assessing': {AppLanguage.english: 'Now Assessing', AppLanguage.gujarati: 'હવે મૂલ્યાંકન થઈ રહ્યું છે'},
