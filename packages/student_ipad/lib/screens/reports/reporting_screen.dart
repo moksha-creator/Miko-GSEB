@@ -40,9 +40,9 @@ class ReportingScreen extends StatelessWidget {
             indicatorColor: Color(0xFF3B82F6),
             indicatorWeight: 3,
             tabs: [
-              Tab(icon: Icon(Icons.person), text: 'View A: Student'),
-              Tab(icon: Icon(Icons.groups), text: 'View B: Class'),
-              Tab(icon: Icon(Icons.list_alt), text: 'View C: Response Log'),
+              Tab(icon: Icon(Icons.person), text: 'Student'),
+              Tab(icon: Icon(Icons.groups), text: 'Class'),
+              Tab(icon: Icon(Icons.list_alt), text: 'Response Log'),
             ],
           ),
         ),

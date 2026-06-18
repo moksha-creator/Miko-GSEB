@@ -1,6 +1,0 @@
-{
-  "redirects": [
-    { "source": "/", "destination": "/student/index.html", "permanent": true },
-    { "source": "/student", "destination": "/student/index.html", "permanent": true }
-  ]
-}

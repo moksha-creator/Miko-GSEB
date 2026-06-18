@@ -1,0 +1,60 @@
+[
+  {
+    "id": "q_ss_001",
+    "subject": "Social Studies",
+    "template": "TEXT_CHOICE_4_IMAGE_QUESTION",
+    "questionText": "The image shows a prominent ruler from a period in North India's history. After the death of this ruler, his vast empire was divided into small independent states. Which period in Indian history is associated with the rise of these small independent states?",
+    "questionImage": "packages/shared_core/assets/mock/harshvardhan.png",
+    "questionImageBrief": "A portrait of Emperor Harshvardhan, depicted as a regal figure with a turban and ornate clothing.",
+    "instruction": "Tap the correct answer",
+    "options": [
+      {"text": "The Gupta Empire", "isCorrect": false},
+      {"text": "The Mauryan Empire", "isCorrect": false},
+      {"text": "The Rajput era", "isCorrect": true},
+      {"text": "The Delhi Sultanate", "isCorrect": false}
+    ],
+    "explanation": "The text states, 'In the 7th century, after the death of Harshvardhana, his vast empire was divided into small independent states in North India... This period of the middle age is called the Rajput era in the Indian History.'"
+  },
+  {
+    "id": "q_ss_002",
+    "subject": "Social Studies",
+    "template": "MATCHING_PAIRS",
+    "instruction": "Connect the matching pairs.",
+    "pairs": [
+      {
+        "left": {"image": "packages/shared_core/assets/mock/map_kannauj.png", "imageBrief": "A map highlighting the region of Kannauj in North India, representing the Gadhwal kingdom."},
+        "right": {"image": "packages/shared_core/assets/mock/portrait_chandradev.png", "imageBrief": "A portrait of an ancient Indian king, representing Chandradev."}
+      },
+      {
+        "left": {"image": "packages/shared_core/assets/mock/map_malwa.png", "imageBrief": "A map highlighting the Malwa region in Central India, representing the Parmar dynasty."},
+        "right": {"image": "packages/shared_core/assets/mock/portrait_krishnaraj.png", "imageBrief": "A portrait of an ancient Indian king, representing Krishnaraj."}
+      },
+      {
+        "left": {"image": "packages/shared_core/assets/mock/map_shakambhari.png", "imageBrief": "A map highlighting the Shakambhari region near Ajmer, representing the Chauhan dynasty."},
+        "right": {"image": "packages/shared_core/assets/mock/portrait_vasudev.png", "imageBrief": "A portrait of an ancient Indian king, representing Vasudev."}
+      },
+      {
+        "left": {"image": "packages/shared_core/assets/mock/map_bengal.png", "imageBrief": "A map highlighting the Bengal region in Eastern India, representing the Pala dynasty."},
+        "right": {"image": "packages/shared_core/assets/mock/portrait_gopal.png", "imageBrief": "A portrait of an ancient Indian king, representing Gopal."}
+      },
+      {
+        "left": {"image": "packages/shared_core/assets/mock/map_vatapi.png", "imageBrief": "A map highlighting the Vatapi (Badami) region in South India, representing the Chalukya dynasty of Vatapi."},
+        "right": {"image": "packages/shared_core/assets/mock/portrait_pulkeshi.png", "imageBrief": "A portrait of an ancient Indian king, representing Pulkeshi-I."}
+      }
+    ],
+    "explanation": "Chandradev founded the Garhwal kingdom. Krishnaraj founded the Parmar dynasty. Vasudev was the founder of the Chahman or Chauhan dynasty of Shakambhari. Gopal founded the Pala dynasty. Pulkeshi-I was an important ruler and established the state of the Chalukya dynasty of Vatapi."
+  },
+  {
+    "id": "q_ss_003",
+    "subject": "Social Studies",
+    "template": "SEQUENCE",
+    "instruction": "Put the following rulers of the Chauhan dynasty in the correct order of their succession.",
+    "items": [
+      {"text": "Vasudev founded the Chahman or Chauhan dynasty.", "correctOrder": 1},
+      {"text": "Ajayraj sat on the throne of Shakambhari and established Ajaymeru.", "correctOrder": 2},
+      {"text": "Someshwar Chauhan came to the throne.", "correctOrder": 3},
+      {"text": "Prithviraj III succeeded Someshwar Chauhan.", "correctOrder": 4}
+    ],
+    "explanation": "The text states, \"Vasudev was the founder of the Chahman or Chauhan dynasty of Shakambhari. In the beginning of the twelth century, Ajayraj sat on the throne of Shakambhari... After him, his son Someshwar Chauhan came to the throne. He was succeeded by his son Prithviraj III.\""
+  }
+]

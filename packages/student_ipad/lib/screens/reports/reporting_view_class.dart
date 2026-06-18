@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_core/shared_core.dart';
+import '../../providers/planner_state_provider.dart';
 import '../student_profiles_screen.dart';
 
 class ReportingViewClass extends ConsumerStatefulWidget {
@@ -12,6 +13,56 @@ class ReportingViewClass extends ConsumerStatefulWidget {
 
 class _ReportingViewClassState extends ConsumerState<ReportingViewClass> {
   String _selectedSubject = 'All';
+
+  Widget _metricCard(String label, String value, IconData icon) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 0,
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: const Color(0xFF64748B), size: 20),
+                const SizedBox(width: 8),
+                Text(label, style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold, fontSize: 13)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _subjectRow(String subject, int correct, int total) {
+    final pct = total == 0 ? 0.0 : (correct / total) * 100;
+    final color = pct >= 75
+        ? AppColors.success
+        : (pct >= 50 ? AppColors.warning : AppColors.accent);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(child: Text(subject, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
+          Text('$correct/$total', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text('${pct.toStringAsFixed(0)}%', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +79,6 @@ class _ReportingViewClassState extends ConsumerState<ReportingViewClass> {
     
     final totalAccuracy = answered.isEmpty ? 0.0 : (correct.length / answered.length) * 100;
 
-    // Coverage Strip
     final allStudentsAsync = ref.watch(mockDataServiceProvider).loadClassSample();
     
     return Padding(
@@ -36,159 +86,167 @@ class _ReportingViewClassState extends ConsumerState<ReportingViewClass> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Filters
-          Row(
-            children: [
-              const Text('Filter Subject:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(width: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E8F0))),
-                child: DropdownButton<String>(
-                  value: _selectedSubject,
-                  underline: const SizedBox(),
-                  items: subjects.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                  onChanged: (val) {
-                    setState(() {
-                      _selectedSubject = val!;
-                    });
-                  },
-                ),
+          // A. Subject filter — chip row
+          if (subjects.length > 1)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Wrap(
+                spacing: 8,
+                children: subjects.map((s) {
+                  final isSelected = _selectedSubject == s;
+                  return ChoiceChip(
+                    label: Text(s == 'All' ? 'All Subjects' : s, style: TextStyle(color: isSelected ? AppColors.primary : AppColors.textPrimary, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                    selected: isSelected,
+                    onSelected: (_) => setState(() => _selectedSubject = s),
+                    selectedColor: AppColors.primaryLight,
+                    backgroundColor: AppColors.surface,
+                    side: BorderSide(color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  );
+                }).toList(),
               ),
-              const SizedBox(width: 24),
-              const Text('Overall Accuracy:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(width: 8),
-              Text('${totalAccuracy.toStringAsFixed(1)}%', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: totalAccuracy >= 70 ? Colors.green : Colors.orange)),
-            ],
-          ),
-          const SizedBox(height: 24),
-          
+            ),
+          if (subjects.length > 1) const SizedBox(height: 24),
+
           Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Left Column: Coverage Strip & Template Family
-                Expanded(
-                  flex: 1,
+            child: FutureBuilder<ClassProfile>(
+              future: allStudentsAsync,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                
+                final totalRoster = snapshot.data!.students.length;
+                final evaluatedStudents = filtered.map((e) => e.studentId).toSet();
+                final skippedIds = ref.watch(skippedStudentsProvider);
+                final completedIds = ref.watch(completedStudentsProvider);
+                
+                final evaluatedCount = evaluatedStudents.length;
+                final skippedCount = skippedIds.length;
+                int pendingCount = totalRoster - completedIds.length - skippedIds.length;
+                if (pendingCount < 0) pendingCount = 0;
+                
+                final evalPct = totalRoster == 0 ? 0.0 : evaluatedCount / totalRoster;
+                final pendingPct = totalRoster == 0 ? 0.0 : pendingCount / totalRoster;
+                final skipPct = totalRoster == 0 ? 0.0 : skippedCount / totalRoster;
+
+                // Group by subject for the breakdown
+                final subjectAcc = <String, List<QuizResponse>>{};
+                for (final r in answered) {
+                  subjectAcc.putIfAbsent(r.subject, () => []).add(r);
+                }
+
+                return SingleChildScrollView(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Coverage Strip
+                      // B. Four headline metric cards
+                      Row(
+                        children: [
+                          Expanded(child: _metricCard('Class Accuracy', '${totalAccuracy.toStringAsFixed(0)}%', Icons.score)),
+                          const SizedBox(width: 16),
+                          Expanded(child: _metricCard('Assessed', '$evaluatedCount', Icons.check_circle_outline)),
+                          const SizedBox(width: 16),
+                          Expanded(child: _metricCard('Remaining', '$pendingCount', Icons.pending_actions)),
+                          const SizedBox(width: 16),
+                          Expanded(child: _metricCard('Absent', '$skippedCount', Icons.person_off)),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // C. Coverage bar — full width
                       Card(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
                         color: Colors.white,
                         child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: FutureBuilder<ClassProfile>(
-                            future: allStudentsAsync,
-                            builder: (context, snapshot) {
-                              if (!snapshot.hasData) return const CircularProgressIndicator();
-                              
-                              final totalRoster = snapshot.data!.students.length;
-                              final evaluatedStudents = filtered.map((e) => e.studentId).toSet();
-                              final skippedIds = ref.watch(skippedStudentsProvider);
-                              
-                              final evaluatedCount = evaluatedStudents.length;
-                              final skippedCount = skippedIds.length;
-                              final pendingCount = totalRoster - evaluatedCount - skippedCount;
-                              
-                              final evalPct = totalRoster == 0 ? 0.0 : evaluatedCount / totalRoster;
-                              final pendingPct = totalRoster == 0 ? 0.0 : pendingCount / totalRoster;
-                              final skipPct = totalRoster == 0 ? 0.0 : skippedCount / totalRoster;
-
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  const Text('Coverage Strip', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                  const SizedBox(height: 16),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: SizedBox(
-                                      height: 24,
-                                      child: Row(
-                                        children: [
-                                          if (evalPct > 0) Expanded(flex: (evalPct * 100).round(), child: Container(color: Colors.green)),
-                                          if (pendingPct > 0) Expanded(flex: (pendingPct * 100).round(), child: Container(color: Colors.amber)),
-                                          if (skipPct > 0) Expanded(flex: (skipPct * 100).round(), child: Container(color: Colors.red.shade400)),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const Text('Class Coverage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
+                              const SizedBox(height: 16),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: SizedBox(
+                                  height: 16,
+                                  child: Row(
                                     children: [
-                                      _buildLegend('Assessed', Colors.green, evaluatedCount),
-                                      _buildLegend('Pending', Colors.amber, pendingCount),
-                                      _buildLegend('Absent/Skip', Colors.red.shade400, skippedCount),
+                                      if (evalPct > 0) Expanded(flex: (evalPct * 100).round() >= 1 ? (evalPct * 100).round() : 1, child: Container(color: AppColors.success)),
+                                      if (pendingPct > 0) Expanded(flex: (pendingPct * 100).round() >= 1 ? (pendingPct * 100).round() : 1, child: Container(color: AppColors.warning)),
+                                      if (skipPct > 0) Expanded(flex: (skipPct * 100).round() >= 1 ? (skipPct * 100).round() : 1, child: Container(color: AppColors.accent)),
                                     ],
-                                  )
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Row(children: [Container(width: 10, height: 10, decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle)), const SizedBox(width: 6), Text('Assessed ($evaluatedCount)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))]),
+                                  const SizedBox(width: 24),
+                                  Row(children: [Container(width: 10, height: 10, decoration: const BoxDecoration(color: AppColors.warning, shape: BoxShape.circle)), const SizedBox(width: 6), Text('Remaining ($pendingCount)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))]),
+                                  const SizedBox(width: 24),
+                                  Row(children: [Container(width: 10, height: 10, decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle)), const SizedBox(width: 6), Text('Absent ($skippedCount)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))]),
                                 ],
-                              );
-                            }
+                              ),
+                            ],
                           ),
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // Breakdown by template family
-                      Expanded(
-                        child: Card(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          elevation: 0,
-                          color: Colors.white,
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                const Text('Class Breakdown by Template Family', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                const Divider(),
-                                Expanded(
-                                  child: ListView(
-                                    children: QuestionType.values.map((qt) {
-                                      final items = answered.where((r) => r.questionType == qt).toList();
-                                      if (items.isEmpty) return const SizedBox.shrink();
-                                      final correctCount = items.where((r) => r.isCorrect).length;
-                                      final pct = (correctCount / items.length) * 100;
-                                      return ListTile(
-                                        title: Text(qt.toString().split('.').last.toUpperCase()),
-                                        trailing: Text('${pct.toStringAsFixed(0)}%', style: TextStyle(fontWeight: FontWeight.bold, color: pct >= 70 ? Colors.green : Colors.red)),
-                                      );
-                                    }).toList(),
-                                  ),
+
+                      // D. Two-column section
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left column — "Accuracy by subject"
+                          Expanded(
+                            child: Card(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 0,
+                              color: Colors.white,
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    const Text('Accuracy by subject', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
+                                    const Divider(height: 32),
+                                    if (subjectAcc.isEmpty) const Text('No data', style: TextStyle(color: AppColors.textMuted)),
+                                    ...subjectAcc.entries.map((e) {
+                                      final total = e.value.length;
+                                      final c = e.value.where((r) => r.isCorrect).length;
+                                      return _subjectRow(e.key, c, total);
+                                    }),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 24),
-                // Right Column: Most Missed Questions
-                Expanded(
-                  flex: 1,
-                  child: Card(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                    color: Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const Text('Most-Missed Questions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          const Divider(),
+                          const SizedBox(width: 24),
+                          // Right column — "Consider revisiting"
                           Expanded(
-                            child: _buildMostMissed(answered),
+                            child: Card(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 0,
+                              color: Colors.white,
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    const Text('Consider revisiting', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textPrimary)),
+                                    const Divider(height: 32),
+                                    _buildConsiderRevisiting(answered),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
+                    ],
                   ),
-                ),
-              ],
+                );
+              }
             ),
           ),
         ],
@@ -196,17 +254,7 @@ class _ReportingViewClassState extends ConsumerState<ReportingViewClass> {
     );
   }
 
-  Widget _buildLegend(String label, Color color, int count) {
-    return Row(
-      children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 6),
-        Text('$label ($count)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  Widget _buildMostMissed(List<QuizResponse> answered) {
+  Widget _buildConsiderRevisiting(List<QuizResponse> answered) {
     final missedMap = <String, int>{}; // questionId -> misses
     final qTextMap = <String, String>{}; // questionId -> text
 
@@ -218,45 +266,39 @@ class _ReportingViewClassState extends ConsumerState<ReportingViewClass> {
     }
 
     if (missedMap.isEmpty) {
-      return const Center(child: Text('No missed questions yet! 🎉', style: TextStyle(color: Colors.green, fontSize: 16)));
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 20),
+          child: Text('No missed questions yet! 🎉', style: TextStyle(color: AppColors.success, fontSize: 15, fontWeight: FontWeight.w600)),
+        ),
+      );
     }
 
     final sorted = missedMap.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     
-    return ListView.builder(
-      itemCount: sorted.length,
-      itemBuilder: (context, index) {
-        final e = sorted[index];
+    return Column(
+      children: sorted.map((e) {
         final text = qTextMap[e.key] ?? 'Unknown';
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFEF2F2),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.red.shade100),
-          ),
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.red.shade100, shape: BoxShape.circle),
-                child: Text('${e.value}', style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 16),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Misses', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                    Text(text, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  ],
+                child: Text(text, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                child: Text('${e.value} missed', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.accent)),
               ),
             ],
           ),
         );
-      },
+      }).toList(),
     );
   }
 }
