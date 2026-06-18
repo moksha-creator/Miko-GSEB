@@ -125,16 +125,30 @@ class _ChoiceTemplateState extends State<ChoiceTemplate> {
             SizedBox(height: 8.0 * scale),
             Expanded(
               child: Center(
-                child: Text(
-                  option.value,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: ansFz,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.white : AppColors.textPrimary),
-                ),
+                child: isImage
+                    ? (option.value.startsWith('http')
+                        ? Image.network(
+                            option.value,
+                            fit: BoxFit.contain,
+                            errorBuilder: (c, e, s) =>
+                                const Icon(Icons.broken_image, size: 40),
+                          )
+                        : Image.asset(
+                            option.value,
+                            fit: BoxFit.contain,
+                            errorBuilder: (c, e, s) =>
+                                const Icon(Icons.broken_image, size: 40),
+                          ))
+                    : Text(
+                        option.value,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: ansFz,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? Colors.white : AppColors.textPrimary),
+                      ),
               ),
             ),
           ],
