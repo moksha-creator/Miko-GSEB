@@ -481,12 +481,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           final hasImageOptions = currentQ.options.any(
             (o) => o.value.startsWith('assets/') || o.value.startsWith('http'),
           );
-          final cols = (currentQ.options.length <= 2 || hasImageOptions) ? 1 : 2;
+          // Use 2 columns for 3-4 options regardless of whether they are images, so they fit on a laptop screen
+          final cols = currentQ.options.length <= 2 ? 1 : 2;
           final spacing = 12.0;
           final tileW = (constraints.maxWidth - (cols - 1) * spacing) / cols;
+          // Reduce max height for images so 2 rows can fit vertically on a standard laptop screen
           final tileH = hasImageOptions
-              ? (tileW * 0.55).clamp(140.0, 260.0)
-              : (tileW * 0.42).clamp(100.0, 200.0);
+              ? (tileW * 0.6).clamp(120.0, 200.0)
+              : (tileW * 0.42).clamp(80.0, 150.0);
 
           return GridView.builder(
             shrinkWrap: true,
