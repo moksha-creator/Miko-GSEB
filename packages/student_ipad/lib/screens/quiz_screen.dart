@@ -192,8 +192,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text('Exit assessment?'),
         content: const Text(
-            'This ends the current student\\'s session. '
-            'Their answers so far are saved.'),
+            "This ends the current student's session. "
+            "Their answers so far are saved."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
