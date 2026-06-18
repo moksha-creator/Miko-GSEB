@@ -11,3 +11,9 @@ melos_*.log
 *.spec
 *.xccheckout
 *.xcworkspace
+
+
+# throwaway / scratch artifacts
+scratch_*
+fix_*.py
+*.scratch.dart
