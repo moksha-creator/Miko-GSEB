@@ -363,11 +363,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                       
                       // Question Card
                       Container(
-                        padding: const EdgeInsets.all(32),
+                        padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))],
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5))],
                         ),
                         child: Row(
                           children: [
@@ -413,7 +413,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                           ),
                         ),
 
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 16),
                       
                       // Answer Arena
                       Expanded(
@@ -487,8 +487,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           final tileW = (constraints.maxWidth - (cols - 1) * spacing) / cols;
           // Reduce max height for images so 2 rows can fit vertically on a standard laptop screen
           final tileH = hasImageOptions
-              ? (tileW * 0.6).clamp(120.0, 200.0)
-              : (tileW * 0.42).clamp(80.0, 150.0);
+              ? (tileW * 0.55).clamp(100.0, 160.0)
+              : (tileW * 0.35).clamp(60.0, 120.0);
 
           return GridView.builder(
             shrinkWrap: true,
@@ -552,7 +552,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       );
     } else if (currentQ.type == QuestionType.sorting || currentQ.type == QuestionType.matching) {
       return ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 360),
+        constraints: const BoxConstraints(maxHeight: 280),
         child: InteractivePuzzleWidget(
           key: ValueKey(currentQ.id),
           question: currentQ,
@@ -758,7 +758,7 @@ class _InteractivePuzzleWidgetState extends State<InteractivePuzzleWidget> {
             },
           ),
           
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           ElevatedButton(
             onPressed: isComplete ? () {
               widget.onSubmit(_itemAssignments);
@@ -766,7 +766,7 @@ class _InteractivePuzzleWidgetState extends State<InteractivePuzzleWidget> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
             child: const Text('Submit Matches', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -870,7 +870,7 @@ class _InteractivePuzzleWidgetState extends State<InteractivePuzzleWidget> {
               },
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           ElevatedButton(
             onPressed: () {
               widget.onSubmit(_sequenceItems);
@@ -878,7 +878,7 @@ class _InteractivePuzzleWidgetState extends State<InteractivePuzzleWidget> {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
             child: const Text('Submit Sequence', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
